@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <!-- Feature 1: Property Value Hover.
+        Registered as a WTP/SSE documentationTextHover on the XML default partition so it fires in
+        Studio's "Configuration XML" editor. The built-in XML hover (XMLTagInfoHoverProcessor)
+        returns null over ${...} tokens, so BestMatchHover selects ours there. -->
+   <extension point="org.eclipse.wst.sse.ui.editorConfiguration">
+      <documentationTextHover
+            class="com.studioqol.feature.hover.PropertyHoverProcessor"
+            target="org.eclipse.wst.xml.XML_DEFAULT">
+      </documentationTextHover>
+   </extension>
+
+   <!-- Feature 1: Ctrl+click go-to-definition. Binds to the XML source editor's hyperlink target
+        (org.eclipse.core.runtime.xml) so it fires in the Configuration XML editor. -->
+   <extension point="org.eclipse.ui.workbench.texteditor.hyperlinkDetectors">
+      <hyperlinkDetector
+            class="com.studioqol.feature.hover.PropertyHyperlinkDetector"
+            id="com.studioqol.hyperlink.property"
+            name="Mule property definition"
+            targetId="org.eclipse.core.runtime.xml">
+      </hyperlinkDetector>
+   </extension>
+
+   <!-- Eager startup so the launch listener (active-env persistence) is registered at Studio
+        startup, before the user runs a config. -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="com.studioqol.StudioQolStartup"/>
+   </extension>
+
+</plugin>

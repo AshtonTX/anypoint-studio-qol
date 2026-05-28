@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="com.studioqol.feature"
+      label="Anypoint Studio QoL"
+      version="0.1.0.qualifier"
+      provider-name="studioqol">
+
+   <description>
+      Quality-of-life features for Anypoint Studio. Feature 1: Property Value Hover.
+   </description>
+
+   <plugin
+         id="com.studioqol"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+
+</feature>

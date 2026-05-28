@@ -1,0 +1,14 @@
+# Eclipse workspace metadata + Mule runtime data (machine-local)
+.metadata/
+.mule/
+.recommenders/
+
+# Build output
+target/
+bin/
+*.class
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*~

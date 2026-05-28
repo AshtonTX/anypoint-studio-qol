@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.studioqol</groupId>
+  <artifactId>com.studioqol.parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>Anypoint Studio QoL (parent)</name>
+
+  <properties>
+    <tycho-version>4.0.13</tycho-version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <modules>
+    <module>com.studioqol</module>
+    <module>com.studioqol.feature</module>
+    <module>com.studioqol.repository</module>
+  </modules>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>tycho-maven-plugin</artifactId>
+        <version>${tycho-version}</version>
+        <extensions>true</extensions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>target-platform-configuration</artifactId>
+        <version>${tycho-version}</version>
+        <configuration>
+          <!-- Pinned to the local Studio install (machine-specific, like the .target itself). -->
+          <target>
+            <file>/Users/ashton/mule-plugin-workspace/studio-7.25.target</file>
+          </target>
+          <environments>
+            <environment>
+              <os>macosx</os>
+              <ws>cocoa</ws>
+              <arch>aarch64</arch>
+            </environment>
+          </environments>
+          <executionEnvironment>JavaSE-17</executionEnvironment>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

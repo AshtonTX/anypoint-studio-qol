@@ -1,0 +1,24 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Anypoint Studio QoL
+Bundle-SymbolicName: com.studioqol;singleton:=true
+Bundle-Version: 0.1.0.qualifier
+Bundle-Vendor: studioqol
+Automatic-Module-Name: com.studioqol
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-Activator: com.studioqol.StudioQolPlugin
+Bundle-ActivationPolicy: lazy
+Require-Bundle: org.eclipse.jface.text,
+ org.eclipse.text,
+ org.eclipse.wst.sse.ui,
+ org.eclipse.wst.sse.core,
+ org.eclipse.wst.xml.core,
+ org.eclipse.core.resources,
+ org.eclipse.core.runtime,
+ org.eclipse.ui,
+ org.eclipse.core.filebuffers,
+ org.eclipse.ui.workbench.texteditor,
+ org.eclipse.ui.ide,
+ org.eclipse.jface,
+ org.eclipse.swt,
+ org.eclipse.debug.core

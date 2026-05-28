@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature id="com.studioqol.feature" version="0.0.0">
+      <category name="studioqol"/>
+   </feature>
+   <category-def name="studioqol" label="Anypoint Studio QoL"/>
+</site>
