@@ -34,9 +34,10 @@
         <artifactId>target-platform-configuration</artifactId>
         <version>${tycho-version}</version>
         <configuration>
-          <!-- Pinned to the local Studio install (machine-specific, like the .target itself). -->
+          <!-- Repo-local target; resolves Eclipse/WTP from the public 2024-03 p2 repo (no local
+               Studio install needed to build). Run mvn from the repo root. -->
           <target>
-            <file>/Users/ashton/mule-plugin-workspace/studio-7.25.target</file>
+            <file>${maven.multiModuleProjectDirectory}/studio-7.25.target</file>
           </target>
           <environments>
             <environment>
