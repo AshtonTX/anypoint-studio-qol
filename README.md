@@ -1,7 +1,8 @@
 # Anypoint Studio QoL
 
-A quality-of-life Eclipse plugin for **Anypoint Studio 7.25** (Eclipse 4.31). Currently one feature:
-**Property Value Hover** in the Mule **Configuration XML** editor.
+A quality-of-life Eclipse plugin for **Anypoint Studio 7.25** (Eclipse 4.31). Two features:
+**Property Value Hover** in the Mule **Configuration XML** editor, and the same hover (plus Ctrl/⌘+click
+navigation) for **DataWeave** `p('...')` references.
 
 ## What it does
 Hovering a `${propertyName}` placeholder in the Configuration XML tab shows a popup with:
@@ -20,6 +21,14 @@ Hovering a `${propertyName}` placeholder in the Configuration XML tab shows a po
   `<configuration-properties file="envs/${env}.properties"/>`.
 - The same keys across env files with different values; active env chosen at runtime with `-Denv=<env>`
   (`-M-Denv=<env>` in Studio). The selector property name (`env`) is configurable in code.
+
+## DataWeave property hover (`p('...')`)
+The same per-environment popup appears when you hover a `p('key')` / `Mule::p('key')` reference inside a
+DataWeave editor — the **Transform Message** editor, a **Logger `fx`** (expression-mode) field, or a
+standalone **`.dwl`** file. The popup header reads `p('key')`; move the pointer into it (or press **F2**)
+to select and copy the text, exactly like the Configuration XML hover. **Ctrl/⌘+click** a `p('key')`
+jumps to its definition. (Implemented at the SWT level because Studio's DataWeave editor exposes no hover
+extension point — see `research/feature2-dataweave-hover.md`.)
 
 ## Build
 Requires **JDK 17** and **Maven 3.9+** (internet access on the first build to download Tycho and the
@@ -46,6 +55,7 @@ Output: a p2 update site at `com.studioqol.repository/target/repository/`.
 ## Use
 - Open a Mule config → **Configuration XML** tab → hover a `${key}`.
 - **Ctrl/⌘+click** a `${key}` to go to its definition.
+- In a **Transform Message** / **Logger `fx`** / `.dwl` editor → hover or **Ctrl/⌘+click** a `p('key')`.
 - For the active-env highlight: set `-M-Denv=<env>` under **Run → Run Configurations → (your Mule app) →
   Arguments → VM arguments**, then run it once.
 
@@ -53,5 +63,5 @@ Output: a p2 update site at `com.studioqol.repository/target/repository/`.
 - `com.studioqol/` — the plug-in (shared `core/` index + `feature/hover/`).
 - `com.studioqol.feature/`, `com.studioqol.repository/` — p2 feature + update site.
 - `CLAUDE.md`, `PLAN.md`, `research/` — design notes and the integration research.
-- A DataWeave `p('...')` hover was investigated and is **not feasible** via supported Studio APIs — see
-  `research/feature2-dataweave-hover.md`.
+- The DataWeave `p('...')` hover + navigation (Feature 2) and how it hooks the editor at the SWT level —
+  see `research/feature2-dataweave-hover.md`.

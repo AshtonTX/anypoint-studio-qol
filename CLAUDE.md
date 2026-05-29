@@ -6,9 +6,9 @@
 > built for now): Property Value Hover.** Leave clean seams for future features — don't
 > build them yet.
 
-## Status (2026-05-28) — Feature 1 COMPLETE; Feature 2 investigated (not feasible)
+## Status (2026-05-29) — Feature 1 COMPLETE; Feature 2 COMPLETE
 **Feature 1 (Property Value Hover) is built, installed, and verified in Studio 7.25.0.** Latest build
-`com.studioqol 0.1.0.202605281845`. In the **Configuration XML** editor:
+`com.studioqol 0.1.0.202605290536` (Features 1 & 2). In the **Configuration XML** editor:
 - Hover `${key}` → HTML popup (native style, "Press F2 for focus"): per-env value table from
   `envs/*.properties` with `file:line`; honest **secure / runtime-only / unresolved / (empty)** flags;
   HTML-escaped values; nested `${a${b}}` and `${secure::}` handled.
@@ -16,9 +16,15 @@
   **persisted across restarts** (launch listener + eager startup; per-project preference).
 - **Ctrl/⌘+click** a `${key}` → jumps to its definition (per env file, or the inline global / secure file).
 
-**Feature 2 (DataWeave `p('...')` hover): NOT feasible via supported APIs** — Studio's DataWeave editor
-is a closed Xtext integration (no external hover hook). Findings + candidate (unsupported) routes for a
-future agent: **`research/feature2-dataweave-hover.md`**.
+**Feature 2 (DataWeave `p('...')` hover + navigation) is built and verified in Studio 7.25.0.** Hovering
+`p('key')` / `Mule::p('key')` in the **Transform Message** editor, a **Logger `fx` expression** field, or
+a standalone **`.dwl`** shows the same per-env popup as Feature 1 (header reads `p('key')`), with
+**F2 / move-into-popup** focus (select + copy) and **Ctrl/⌘-click** navigation to the definition.
+Implemented **editor-agnostically** at the SWT level — a global `Display` `MouseHover`/`MouseDown` filter
+that recognizes DataWeave `StyledText`s by host-composite package prefixes and suppresses the native
+Xtext hover only on a `p('...')` token (no Xtext/DFL dependency; no `plugin.xml`/`MANIFEST` change). The
+earlier "not feasible" verdict applied only to Xtext-internal routes. Design + the two version-coupled
+package prefixes (the one place to update after a Studio upgrade): **`research/feature2-dataweave-hover.md`**.
 
 Build: `JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-17.jdk/Contents/Home mvn -B -f pom.xml clean verify`
 → p2 site at `com.studioqol.repository/target/repository`. Install: Help → Install New Software → Add →
