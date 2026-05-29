@@ -6,12 +6,14 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
 import com.studioqol.core.env.LaunchEnvTracker;
 import com.studioqol.core.index.PropertyIndexManager;
 import com.studioqol.core.resource.MuleResourceListener;
+import com.studioqol.feature.dwhover.DwHoverInstaller;
 
 /**
  * Bundle activator and owner of the shared infrastructure. The property index is a static singleton
@@ -27,6 +29,7 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	private static StudioQolPlugin plugin;
 	private MuleResourceListener resourceListener;
 	private LaunchEnvTracker launchTracker;
+	private DwHoverInstaller dwHoverInstaller;
 
 	/** The shared per-project index. Always available (does not require activation). */
 	public static PropertyIndexManager indexManager() {
@@ -45,6 +48,14 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 			launchTracker = new LaunchEnvTracker();
 			lm.addLaunchListener(launchTracker);
 		}
+		// Feature 2: install the global SWT filter that adds the DataWeave p('...') hover. addFilter
+		// must run on the UI thread; asyncExec defers it until the workbench event loop is pumping and
+		// avoids any chance of a UI-thread deadlock during bundle start.
+		dwHoverInstaller = new DwHoverInstaller();
+		Display display = Display.getDefault();
+		if (display != null && !display.isDisposed()) {
+			display.asyncExec(() -> dwHoverInstaller.install());
+		}
 	}
 
 	@Override
@@ -59,6 +70,17 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 				lm.removeLaunchListener(launchTracker);
 			}
 			launchTracker = null;
+			if (dwHoverInstaller != null) {
+				Display display = Display.getDefault();
+				if (display != null && !display.isDisposed()) {
+					try {
+						display.syncExec(() -> dwHoverInstaller.uninstall());
+					} catch (RuntimeException e) {
+						// Display may already be tearing down on shutdown — safe to ignore.
+					}
+				}
+				dwHoverInstaller = null;
+			}
 			INDEX.dispose();
 		} finally {
 			plugin = null;

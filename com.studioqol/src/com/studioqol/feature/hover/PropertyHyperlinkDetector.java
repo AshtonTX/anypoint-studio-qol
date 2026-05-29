@@ -12,9 +12,9 @@ import org.eclipse.jface.text.hyperlink.AbstractHyperlinkDetector;
 import org.eclipse.jface.text.hyperlink.IHyperlink;
 
 import com.studioqol.StudioQolPlugin;
+import com.studioqol.core.PropertyNavigation;
+import com.studioqol.core.PropertyNavigation.Target;
 import com.studioqol.core.SseFiles;
-import com.studioqol.core.index.EnvValue;
-import com.studioqol.core.index.PropertyDefinition;
 import com.studioqol.core.index.PropertyIndex;
 
 /**
@@ -52,34 +52,13 @@ public class PropertyHyperlinkDetector extends AbstractHyperlinkDetector {
 		if (index == null) {
 			return null;
 		}
-		PropertyDefinition def = index.lookup(key);
-		if (def == null) {
+		List<Target> targets = PropertyNavigation.targets(index, key);
+		if (targets.isEmpty()) {
 			return null;
 		}
-
 		List<IHyperlink> links = new ArrayList<>();
-		switch (def.kind) {
-		case ENV_FILE:
-			for (String env : index.environments()) {
-				EnvValue ev = def.valuesByEnv.get(env);
-				if (ev != null && ev.location != null && ev.location.file != null) {
-					links.add(new PropertyHyperlink(placeholder, ev.location,
-							"Open " + ev.location.file.getName() + "  (" + env + ")"));
-				}
-			}
-			break;
-		case INLINE_GLOBAL:
-		case SECURE:
-			if (def.declaration != null && def.declaration.file != null) {
-				links.add(new PropertyHyperlink(placeholder, def.declaration,
-						"Open " + def.declaration.file.getName()));
-			}
-			break;
-		default:
-			break;
-		}
-		if (links.isEmpty()) {
-			return null;
+		for (Target target : targets) {
+			links.add(new PropertyHyperlink(placeholder, target.location, target.label));
 		}
 		if (!canShowMultipleHyperlinks && links.size() > 1) {
 			return new IHyperlink[] { links.get(0) };

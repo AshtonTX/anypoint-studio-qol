@@ -16,39 +16,68 @@ public final class PropertyHoverText {
 	private PropertyHoverText() {
 	}
 
+	/** How the property reference is labelled in the popup header. */
+	public enum LabelStyle {
+		/** Configuration XML placeholder syntax: {@code ${key}} (Feature 1). */
+		PLACEHOLDER {
+			@Override
+			String label(String key) {
+				return "${" + esc(key) + "}";
+			}
+		},
+		/** DataWeave property-function syntax: {@code p('key')} (Feature 2). */
+		DATAWEAVE {
+			@Override
+			String label(String key) {
+				return "p('" + esc(key) + "')";
+			}
+		};
+
+		abstract String label(String key);
+	}
+
+	/** Renders with the default {@link LabelStyle#PLACEHOLDER} ({@code ${key}}) header. */
 	public static String render(String key, boolean secure, String envProperty, String activeEnv,
 			PropertyIndex index) {
+		return render(key, secure, envProperty, activeEnv, index, LabelStyle.PLACEHOLDER);
+	}
+
+	/** Renders the popup, labelling the property reference per {@code style}. */
+	public static String render(String key, boolean secure, String envProperty, String activeEnv,
+			PropertyIndex index, LabelStyle style) {
 		if (key == null || key.isEmpty()) {
 			return null;
 		}
 		if (secure) {
+			// The ${secure::key} form is placeholder-only; DataWeave callers always pass secure=false
+			// (a secure-properties key still renders via the SECURE kind branch below with its style).
 			return secureHtml("${secure::" + esc(key) + "}", null);
 		}
 		if (key.equals(envProperty)) {
-			return runtimeOnlyHtml(key, activeEnv, index);
+			return runtimeOnlyHtml(key, activeEnv, index, style);
 		}
 		PropertyDefinition def = (index == null) ? null : index.lookup(key);
 		if (def == null) {
-			return "<b>${" + esc(key) + "}</b> — unresolved<br>"
+			return "<b>" + style.label(key) + "</b> — unresolved<br>"
 					+ "Not defined in any env file or &lt;global-property&gt;.";
 		}
 		switch (def.kind) {
 		case ENV_FILE:
-			return envHtml(key, def, index, activeEnv);
+			return envHtml(key, def, index, activeEnv, style);
 		case INLINE_GLOBAL:
-			return globalHtml(key, def);
+			return globalHtml(key, def, style);
 		case SECURE:
-			return secureHtml("${" + esc(key) + "}", def);
+			return secureHtml(style.label(key), def);
 		default:
 			return null;
 		}
 	}
 
 	private static String envHtml(String key, PropertyDefinition def, PropertyIndex index,
-			String activeEnv) {
+			String activeEnv, LabelStyle style) {
 		boolean activeKnown = activeEnv != null && index.environments().contains(activeEnv);
 		StringBuilder b = new StringBuilder();
-		b.append("<b>${").append(esc(key)).append("}</b> — per environment");
+		b.append("<b>").append(style.label(key)).append("</b> — per environment");
 		if (activeKnown) {
 			b.append(" · active: <b>").append(esc(activeEnv)).append("</b>");
 		}
@@ -77,9 +106,9 @@ public final class PropertyHoverText {
 		return b.toString();
 	}
 
-	private static String globalHtml(String key, PropertyDefinition def) {
+	private static String globalHtml(String key, PropertyDefinition def, LabelStyle style) {
 		StringBuilder b = new StringBuilder();
-		b.append("<b>${").append(esc(key)).append("}</b> — global-property<br>");
+		b.append("<b>").append(style.label(key)).append("</b> — global-property<br>");
 		String raw = def.rawGlobalValue;
 		b.append((raw == null || raw.isEmpty()) ? "<i>(empty)</i>" : esc(raw));
 		if (def.isChainedGlobal()) {
@@ -97,9 +126,10 @@ public final class PropertyHoverText {
 		return b.toString();
 	}
 
-	private static String runtimeOnlyHtml(String key, String activeEnv, PropertyIndex index) {
+	private static String runtimeOnlyHtml(String key, String activeEnv, PropertyIndex index,
+			LabelStyle style) {
 		StringBuilder b = new StringBuilder();
-		b.append("<b>${").append(esc(key)).append("}</b> — runtime-only<br>");
+		b.append("<b>").append(style.label(key)).append("</b> — runtime-only<br>");
 		b.append("Supplied at launch via <code>-D").append(esc(key)).append("=&lt;value&gt;</code>")
 				.append(" (<code>-M-D").append(esc(key)).append("=</code> in Studio).");
 		if (activeEnv != null && !activeEnv.isEmpty()) {
