@@ -20,7 +20,7 @@ import com.studioqol.core.DwProjectResolver;
 import com.studioqol.core.env.ActiveEnvResolver;
 import com.studioqol.core.env.ActiveEnvService;
 import com.studioqol.core.index.PropertyIndex;
-import com.studioqol.feature.dwhover.PScanner.PHit;
+import com.studioqol.core.scan.PScanner.PHit;
 import com.studioqol.feature.hover.PropertyHoverText;
 
 /**

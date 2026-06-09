@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.core.resources.IFile;
-import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextViewer;
@@ -16,6 +15,8 @@ import com.studioqol.core.PropertyNavigation;
 import com.studioqol.core.PropertyNavigation.Target;
 import com.studioqol.core.SseFiles;
 import com.studioqol.core.index.PropertyIndex;
+import com.studioqol.core.scan.PlaceholderKey;
+import com.studioqol.core.scan.PlaceholderScanner;
 
 /**
  * Ctrl+click navigation from a {@code ${key}} placeholder to its definition: the key's line in each
@@ -35,13 +36,8 @@ public class PropertyHyperlinkDetector extends AbstractHyperlinkDetector {
 		if (placeholder == null) {
 			return null;
 		}
-		String inner = innerOf(doc, placeholder);
-		if (inner == null || inner.isEmpty()) {
-			return null;
-		}
-		boolean secure = inner.startsWith("secure::");
-		String key = (secure ? inner.substring("secure::".length()) : inner).trim();
-		if (key.isEmpty()) {
+		PlaceholderKey pk = PlaceholderKey.of(doc, placeholder);
+		if (pk == null) {
 			return null;
 		}
 		IFile file = SseFiles.fileFor(doc);
@@ -52,7 +48,7 @@ public class PropertyHyperlinkDetector extends AbstractHyperlinkDetector {
 		if (index == null) {
 			return null;
 		}
-		List<Target> targets = PropertyNavigation.targets(index, key);
+		List<Target> targets = PropertyNavigation.targets(index, pk.key);
 		if (targets.isEmpty()) {
 			return null;
 		}
@@ -64,17 +60,5 @@ public class PropertyHyperlinkDetector extends AbstractHyperlinkDetector {
 			return new IHyperlink[] { links.get(0) };
 		}
 		return links.toArray(new IHyperlink[0]);
-	}
-
-	private static String innerOf(IDocument doc, IRegion region) {
-		try {
-			String full = doc.get(region.getOffset(), region.getLength());
-			if (full.length() < 3) {
-				return null;
-			}
-			return full.substring(2, full.length() - 1).trim();
-		} catch (BadLocationException e) {
-			return null;
-		}
 	}
 }

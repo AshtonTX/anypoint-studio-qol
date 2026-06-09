@@ -1,11 +1,15 @@
-package com.studioqol.feature.dwhover;
+package com.studioqol.core.scan;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Detects a DataWeave property reference {@code p('key')} / {@code Mule::p('key')} under a character
- * offset within a single line of text. Line-scoped and dependency-free (operates on a plain
- * {@code String}, not an {@code IDocument}) so it is cheap enough to run inside a global mouse filter
- * and works for the embedded editors where no document is reachable. Analogous to Feature 1's
- * {@code PlaceholderScanner} for {@code ${...}}.
+ * Detects DataWeave property references {@code p('key')} / {@code Mule::p('key')} within a single
+ * line of text. Line-scoped and dependency-free (operates on a plain {@code String}, not an
+ * {@code IDocument}) so it is cheap enough to run inside a global mouse filter and works for the
+ * embedded editors where no document is reachable. Analogous to {@link PlaceholderScanner} for
+ * {@code ${...}}; one matcher core ({@link #scanLine}) serves both the offset lookup used by the
+ * DataWeave hover ({@link #find}) and whole-file usage scanning.
  *
  * <p>Accepts single- or double-quoted keys and whitespace around the call ({@code p ( 'k' )}). Rejects
  * identifier-prefixed look-alikes ({@code map(}, {@code prop(}, {@code dump(}) by requiring the
@@ -31,14 +35,11 @@ public final class PScanner {
 		}
 	}
 
-	/**
-	 * @param line the line text (no trailing newline)
-	 * @param relOffset a character offset within {@code line}
-	 * @return the {@code p('key')} token whose span contains {@code relOffset}, or {@code null}.
-	 */
-	public static PHit find(String line, int relOffset) {
+	/** All {@code p('key')} tokens in one line, left to right. */
+	public static List<PHit> scanLine(String line) {
+		List<PHit> hits = new ArrayList<>();
 		if (line == null || line.isEmpty()) {
-			return null;
+			return hits;
 		}
 		int n = line.length();
 		for (int i = 0; i < n; i++) {
@@ -77,8 +78,21 @@ public final class PScanner {
 			if (afterQuote < n && line.charAt(afterQuote) == ')') {
 				end = afterQuote + 1; // include the closing paren when present
 			}
-			if (relOffset >= i && relOffset < end) {
-				return new PHit(key, i, end);
+			hits.add(new PHit(key, i, end));
+			i = end - 1; // resume after this token
+		}
+		return hits;
+	}
+
+	/**
+	 * @param line the line text (no trailing newline)
+	 * @param relOffset a character offset within {@code line}
+	 * @return the {@code p('key')} token whose span contains {@code relOffset}, or {@code null}.
+	 */
+	public static PHit find(String line, int relOffset) {
+		for (PHit hit : scanLine(line)) {
+			if (relOffset >= hit.start && relOffset < hit.end) {
+				return hit;
 			}
 		}
 		return null;

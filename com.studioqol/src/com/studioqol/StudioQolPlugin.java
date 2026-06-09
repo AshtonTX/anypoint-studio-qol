@@ -13,6 +13,7 @@ import org.osgi.framework.BundleContext;
 import com.studioqol.core.env.LaunchEnvTracker;
 import com.studioqol.core.index.PropertyIndexManager;
 import com.studioqol.core.resource.MuleResourceListener;
+import com.studioqol.core.resource.ProjectChangeBus;
 import com.studioqol.feature.dwhover.DwHoverInstaller;
 
 /**
@@ -25,6 +26,7 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	public static final String PLUGIN_ID = "com.studioqol";
 
 	private static final PropertyIndexManager INDEX = new PropertyIndexManager();
+	private static final ProjectChangeBus BUS = new ProjectChangeBus();
 
 	private static StudioQolPlugin plugin;
 	private MuleResourceListener resourceListener;
@@ -34,6 +36,11 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	/** The shared per-project index. Always available (does not require activation). */
 	public static PropertyIndexManager indexManager() {
 		return INDEX;
+	}
+
+	/** Per-project change notifications (index invalidated, active env switched). Always available. */
+	public static ProjectChangeBus changeBus() {
+		return BUS;
 	}
 
 	@Override

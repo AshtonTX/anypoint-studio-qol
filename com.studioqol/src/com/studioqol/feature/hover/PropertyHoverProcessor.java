@@ -2,7 +2,6 @@ package com.studioqol.feature.hover;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IInformationControlCreator;
 import org.eclipse.jface.text.IRegion;
@@ -16,6 +15,8 @@ import com.studioqol.core.SseFiles;
 import com.studioqol.core.env.ActiveEnvResolver;
 import com.studioqol.core.env.ActiveEnvService;
 import com.studioqol.core.index.PropertyIndex;
+import com.studioqol.core.scan.PlaceholderKey;
+import com.studioqol.core.scan.PlaceholderScanner;
 
 /**
  * Feature 1 hover. Fires only on a {@code ${...}} token (so it never collides with the built-in XML
@@ -60,13 +61,8 @@ public class PropertyHoverProcessor
 			return null;
 		}
 		IDocument doc = textViewer.getDocument();
-		String inner = innerOf(doc, hoverRegion);
-		if (inner == null || inner.isEmpty()) {
-			return null;
-		}
-		boolean secure = inner.startsWith("secure::");
-		String key = (secure ? inner.substring("secure::".length()) : inner).trim();
-		if (key.isEmpty()) {
+		PlaceholderKey pk = PlaceholderKey.of(doc, hoverRegion);
+		if (pk == null) {
 			return null;
 		}
 		String envProperty = new ActiveEnvService().envPropertyName();
@@ -74,19 +70,6 @@ public class PropertyHoverProcessor
 		IProject project = (file == null) ? null : file.getProject();
 		PropertyIndex index = (project == null) ? null : StudioQolPlugin.indexManager().get(project);
 		String activeEnv = (project == null) ? null : ActiveEnvResolver.resolve(project, envProperty);
-		return PropertyHoverText.render(key, secure, envProperty, activeEnv, index);
-	}
-
-	/** Inner text of a {@code ${...}} region (keeps a {@code secure::} prefix). */
-	private static String innerOf(IDocument doc, IRegion region) {
-		try {
-			String full = doc.get(region.getOffset(), region.getLength()); // ${...}
-			if (full.length() < 3) {
-				return null;
-			}
-			return full.substring(2, full.length() - 1).trim();
-		} catch (BadLocationException e) {
-			return null;
-		}
+		return PropertyHoverText.render(pk.key, pk.secure, envProperty, activeEnv, index);
 	}
 }

@@ -11,11 +11,13 @@ import org.eclipse.core.resources.IResourceChangeListener;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
 
+import com.studioqol.StudioQolPlugin;
 import com.studioqol.core.index.PropertyIndexManager;
 
 /**
  * Invalidates a project's cached index when its env {@code .properties} or Mule config XML change,
- * so the next hover rebuilds. Runs off the UI thread; only does cheap delta inspection here.
+ * so the next hover rebuilds, and announces the change on the {@link ProjectChangeBus}. Runs off
+ * the UI thread; only does cheap delta inspection here.
  */
 public final class MuleResourceListener implements IResourceChangeListener {
 
@@ -48,6 +50,7 @@ public final class MuleResourceListener implements IResourceChangeListener {
 		}
 		for (IProject p : affected) {
 			manager.invalidate(p);
+			StudioQolPlugin.changeBus().fire(p, ProjectChangeBus.Kind.INDEX);
 		}
 	}
 

@@ -1,6 +1,5 @@
 package com.studioqol.core.index;
 
-import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -9,6 +8,8 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
+
+import com.studioqol.core.ResourceText;
 
 /**
  * Minimal {@code java.util.Properties}-style line parser that ALSO records the source location of
@@ -38,7 +39,7 @@ public final class PropertiesFileParser {
 		if (file == null || !file.exists()) {
 			return out;
 		}
-		String text = read(file);
+		String text = ResourceText.read(file);
 		if (text == null) {
 			return out;
 		}
@@ -116,19 +117,5 @@ public final class PropertiesFileParser {
 	private static boolean isEncrypted(String v) {
 		String t = v.trim();
 		return t.startsWith("![") && t.endsWith("]");
-	}
-
-	private static String read(IFile file) {
-		String charset;
-		try {
-			charset = file.getCharset();
-		} catch (Exception e) {
-			charset = "ISO-8859-1";
-		}
-		try (InputStream in = file.getContents()) {
-			return new String(in.readAllBytes(), charset == null ? "ISO-8859-1" : charset);
-		} catch (Exception e) {
-			return null;
-		}
 	}
 }

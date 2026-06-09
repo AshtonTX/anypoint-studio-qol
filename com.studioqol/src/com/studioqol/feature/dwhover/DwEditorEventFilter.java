@@ -7,7 +7,8 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 
 import com.studioqol.StudioQolPlugin;
-import com.studioqol.feature.dwhover.PScanner.PHit;
+import com.studioqol.core.scan.PScanner;
+import com.studioqol.core.scan.PScanner.PHit;
 
 /**
  * Global SWT event filter (registered on the {@code Display}) that adds the DataWeave property hover

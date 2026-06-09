@@ -14,7 +14,7 @@ import com.studioqol.core.DwProjectResolver;
 import com.studioqol.core.PropertyNavigation;
 import com.studioqol.core.PropertyNavigation.Target;
 import com.studioqol.core.index.PropertyIndex;
-import com.studioqol.feature.dwhover.PScanner.PHit;
+import com.studioqol.core.scan.PScanner.PHit;
 
 /**
  * Ctrl/⌘-click navigation from a DataWeave {@code p('key')} to its definition, reusing the shared
