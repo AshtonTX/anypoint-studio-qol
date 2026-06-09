@@ -3,6 +3,7 @@ package com.studioqol.core;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
@@ -76,7 +77,14 @@ public final class PropertyNavigation {
 
 	/** Opens {@code target}'s file and selects the defining key. No-op on a null/fileless target. */
 	public static void open(SourceLocation target) {
-		if (target == null || target.file == null) {
+		if (target != null) {
+			openAt(target.file, target.offset, target.length);
+		}
+	}
+
+	/** Opens {@code file} in an editor and selects {@code [offset, offset+length)}. */
+	public static void openAt(IFile file, int offset, int length) {
+		if (file == null) {
 			return;
 		}
 		try {
@@ -88,9 +96,9 @@ public final class PropertyNavigation {
 			if (page == null) {
 				return;
 			}
-			IEditorPart editor = IDE.openEditor(page, target.file, true);
-			if (editor instanceof ITextEditor && target.offset >= 0) {
-				((ITextEditor) editor).selectAndReveal(target.offset, Math.max(0, target.length));
+			IEditorPart editor = IDE.openEditor(page, file, true);
+			if (editor instanceof ITextEditor && offset >= 0) {
+				((ITextEditor) editor).selectAndReveal(offset, Math.max(0, length));
 			}
 		} catch (Exception e) {
 			StudioQolPlugin.log(e);

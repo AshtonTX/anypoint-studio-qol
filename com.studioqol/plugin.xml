@@ -30,4 +30,59 @@
       <startup class="com.studioqol.StudioQolStartup"/>
    </extension>
 
+   <!-- Shared command category for all Studio QoL commands. -->
+   <extension point="org.eclipse.ui.commands">
+      <category
+            id="com.studioqol.commands"
+            name="Studio QoL"/>
+      <command
+            id="com.studioqol.command.findUsages"
+            categoryId="com.studioqol.commands"
+            name="Find Property Usages"
+            description="Find all usages of the Mule property under the caret"/>
+   </extension>
+
+   <extension point="org.eclipse.ui.handlers">
+      <handler
+            commandId="com.studioqol.command.findUsages"
+            class="com.studioqol.feature.usages.FindPropertyUsagesHandler"/>
+   </extension>
+
+   <!-- Suggested binding only (rebindable in Preferences > Keys). Cmd/Ctrl+Shift+8 is unbound in
+        stock Eclipse 4.31 and JDT; deliberately avoids JDT's Cmd+Shift+G/U reference searches. -->
+   <extension point="org.eclipse.ui.bindings">
+      <key
+            sequence="M1+M2+8"
+            commandId="com.studioqol.command.findUsages"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
+   </extension>
+
+   <!-- popup.any (not #TextEditorContext) because the WTP/SSE Configuration XML editor uses its
+        own context-menu id; visibility is scoped to text editors via activeContexts. -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+         <command
+               commandId="com.studioqol.command.findUsages"
+               label="Find Property Usages"
+               style="push">
+            <visibleWhen checkEnabled="false">
+               <with variable="activeContexts">
+                  <iterate operator="or">
+                     <equals value="org.eclipse.ui.textEditorScope"/>
+                  </iterate>
+               </with>
+            </visibleWhen>
+         </command>
+      </menuContribution>
+   </extension>
+
+   <extension point="org.eclipse.search.searchResultViewPages">
+      <viewPage
+            id="com.studioqol.search.usagePage"
+            label="Property Usages"
+            searchResultClass="com.studioqol.feature.usages.PropertyUsageResult"
+            class="com.studioqol.feature.usages.PropertyUsageResultPage"/>
+   </extension>
+
 </plugin>

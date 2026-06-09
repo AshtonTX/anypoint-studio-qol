@@ -21,4 +21,5 @@ Require-Bundle: org.eclipse.jface.text,
  org.eclipse.ui.ide,
  org.eclipse.jface,
  org.eclipse.swt,
- org.eclipse.debug.core
+ org.eclipse.debug.core,
+ org.eclipse.search
