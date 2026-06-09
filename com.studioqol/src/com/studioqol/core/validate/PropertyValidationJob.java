@@ -24,7 +24,9 @@ final class PropertyValidationJob extends WorkspaceJob {
 		super("Studio QoL property validation (" + project.getName() + ")");
 		this.project = project;
 		setRule(project);
-		setSystem(false);
+		// System job: runs automatically and frequently (debounced behind every save) — surfacing
+		// it in the Progress view is pure noise, and cancel/reschedule reads as flicker there.
+		setSystem(true);
 	}
 
 	@Override

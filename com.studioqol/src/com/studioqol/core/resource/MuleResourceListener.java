@@ -36,7 +36,7 @@ public final class MuleResourceListener implements IResourceChangeListener {
 		try {
 			root.accept(delta -> {
 				IResource res = delta.getResource();
-				if (res.getType() == IResource.FILE) {
+				if (res.getType() == IResource.FILE && isContentChange(delta)) {
 					IFile file = (IFile) res;
 					if (isPropertyRelevant(file)) {
 						propertyAffected.add(file.getProject());
@@ -61,6 +61,20 @@ public final class MuleResourceListener implements IResourceChangeListener {
 		for (IProject p : affected) {
 			StudioQolPlugin.changeBus().fire(p, ProjectChangeBus.Kind.INDEX);
 		}
+	}
+
+	/**
+	 * True only for additions/removals and real content changes. Marker-only deltas MUST be ignored:
+	 * the validation job itself creates/deletes markers on these files, and reacting to that would
+	 * re-trigger validation in an infinite schedule/cancel loop.
+	 */
+	private static boolean isContentChange(IResourceDelta delta) {
+		if (delta.getKind() != IResourceDelta.CHANGED) {
+			return true; // ADDED / REMOVED
+		}
+		int flags = delta.getFlags();
+		return (flags & (IResourceDelta.CONTENT | IResourceDelta.REPLACED | IResourceDelta.ENCODING
+				| IResourceDelta.MOVED_FROM | IResourceDelta.MOVED_TO)) != 0;
 	}
 
 	private static boolean isPropertyRelevant(IFile file) {
