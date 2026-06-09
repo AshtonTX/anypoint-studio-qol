@@ -17,6 +17,8 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.Path;
 
+import com.studioqol.core.MuleProjectLayout;
+
 /**
  * Builds a {@link PropertyIndex} for a Mule project from {@code src/main/resources/envs/*.properties}
  * (per-environment values) and {@code src/main/mule/*.xml} (inline globals + secure-properties config).
@@ -24,8 +26,6 @@ import org.eclipse.core.runtime.Path;
  */
 public final class PropertyIndexBuilder {
 
-	private static final String ENVS_DIR = "src/main/resources/envs";
-	private static final String MULE_DIR = "src/main/mule";
 	private static final List<String> ENV_ORDER = Arrays.asList("local", "test", "prod", "example");
 
 	public PropertyIndex build(IProject project) {
@@ -64,7 +64,7 @@ public final class PropertyIndexBuilder {
 
 	private void collectFromMuleXml(IProject project, List<MuleXmlParser.GlobalProp> globals,
 			Set<String> secureFiles) throws Exception {
-		IFolder dir = project.getFolder(new Path(MULE_DIR));
+		IFolder dir = project.getFolder(new Path(MuleProjectLayout.MULE_DIR));
 		if (!dir.exists()) {
 			return;
 		}
@@ -80,7 +80,7 @@ public final class PropertyIndexBuilder {
 	private void collectFromEnvFiles(IProject project, Set<String> secureFiles,
 			Map<String, Map<String, EnvValue>> perKey, Set<String> envNames,
 			Map<String, IFile> secureSources) throws Exception {
-		IFolder dir = project.getFolder(new Path(ENVS_DIR));
+		IFolder dir = project.getFolder(new Path(MuleProjectLayout.ENVS_DIR));
 		if (!dir.exists()) {
 			return;
 		}

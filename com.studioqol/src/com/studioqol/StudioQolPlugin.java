@@ -10,10 +10,14 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
+import com.studioqol.core.ProjectCache;
 import com.studioqol.core.env.LaunchEnvTracker;
-import com.studioqol.core.index.PropertyIndexManager;
+import com.studioqol.core.index.PropertyIndex;
+import com.studioqol.core.index.PropertyIndexBuilder;
 import com.studioqol.core.resource.MuleResourceListener;
 import com.studioqol.core.resource.ProjectChangeBus;
+import com.studioqol.core.usage.UsageIndex;
+import com.studioqol.core.usage.UsageScanner;
 import com.studioqol.feature.dwhover.DwHoverInstaller;
 
 /**
@@ -25,7 +29,8 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 
 	public static final String PLUGIN_ID = "com.studioqol";
 
-	private static final PropertyIndexManager INDEX = new PropertyIndexManager();
+	private static final ProjectCache<PropertyIndex> INDEX = new ProjectCache<>(new PropertyIndexBuilder()::build);
+	private static final ProjectCache<UsageIndex> USAGES = new ProjectCache<>(new UsageScanner()::build);
 	private static final ProjectChangeBus BUS = new ProjectChangeBus();
 
 	private static StudioQolPlugin plugin;
@@ -33,9 +38,14 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	private LaunchEnvTracker launchTracker;
 	private DwHoverInstaller dwHoverInstaller;
 
-	/** The shared per-project index. Always available (does not require activation). */
-	public static PropertyIndexManager indexManager() {
+	/** The shared per-project property index. Always available (does not require activation). */
+	public static ProjectCache<PropertyIndex> indexManager() {
 		return INDEX;
+	}
+
+	/** The shared per-project usage index ({@code ${key}} / {@code p('key')} occurrences). */
+	public static ProjectCache<UsageIndex> usageManager() {
+		return USAGES;
 	}
 
 	/** Per-project change notifications (index invalidated, active env switched). Always available. */
@@ -47,7 +57,7 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		plugin = this;
-		resourceListener = new MuleResourceListener(INDEX);
+		resourceListener = new MuleResourceListener();
 		ResourcesPlugin.getWorkspace().addResourceChangeListener(resourceListener,
 				IResourceChangeEvent.POST_CHANGE);
 		ILaunchManager lm = launchManager();
@@ -89,6 +99,7 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 				dwHoverInstaller = null;
 			}
 			INDEX.dispose();
+			USAGES.dispose();
 		} finally {
 			plugin = null;
 			super.stop(context);
