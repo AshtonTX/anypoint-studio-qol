@@ -6,7 +6,31 @@
 > built for now): Property Value Hover.** Leave clean seams for future features — don't
 > build them yet.
 
-## Status (2026-05-29) — Feature 1 COMPLETE; Feature 2 COMPLETE
+## Status (2026-06-09) — ALL FEATURES BUILT (backlog emptied; build green, manual Studio verification pending)
+The entire former backlog is now implemented on shared infra (commits `9515d0a`…; one per milestone):
+- **Find Property Usages** (`feature/usages/`): Cmd/Ctrl+Shift+8 or context menu on a `${key}` →
+  standard Search view (public `AbstractTextSearchViewPage` API), entries from the new per-project
+  **usage index** (`core/usage/`: mule XML `${…}` + `p('…')` incl. inline DW, plus `**/*.dwl`).
+- **Validation markers + quick fixes** (`core/validate/`, `feature/quickfix/`): UNDEFINED (warning at
+  usage), MISSING_IN_ENV (warning; every key must exist in every env file incl. example),
+  UNUSED (info). Debounced per-project WorkspaceJob behind `ProjectChangeBus` (no builder — user
+  `.project` files untouched); transient markers repopulated at startup. Quick fix appends `key=`
+  with an EMPTY value (never copies values across envs). Excluded: `${env}` selector, `secure::`
+  when no secure file known, dynamic `${a${b}}`.
+- **Quick env switcher** (`feature/envswitch/`): toolbar "Env" pulldown; manual override stored as
+  `manualEnv.<project>` in `ActiveEnvStore`, consulted as **step 0** of `ActiveEnvResolver` (outranks
+  launches until "Auto (from launches)"). Highlight-only — run configs never modified.
+- **Quick-open env file**: Cmd/Ctrl+Shift+9 or switcher menu → `EnvFiles.list` + filterable dialog.
+- **Env Comparison view** (`feature/compare/`): keys × envs table (hover semantics: `(empty)`, `•••`,
+  red `✗ missing`), active-env column dot-marked, problems-only filter, double-click navigation,
+  bus-driven auto-refresh.
+- **Refactors underpinning it**: scanners moved to `core/scan/` with shared `scanLine` cores +
+  `PlaceholderKey`; generic `ProjectCache<T>` replaced `PropertyIndexManager` (also caches
+  `UsageIndex`); `MuleProjectLayout` path constants; `ResourceText` reader; `ProjectChangeBus`
+  (INDEX / ACTIVE_ENV). New platform deps: `org.eclipse.search` (MANIFEST + target unit). Keybindings
+  M1+M2+8 / M1+M2+9 are suggestions (unbound in stock 4.31/JDT).
+
+## Earlier status (2026-05-29) — Feature 1 COMPLETE; Feature 2 COMPLETE
 **Feature 1 (Property Value Hover) is built, installed, and verified in Studio 7.25.0.** Latest build
 `com.studioqol 0.1.0.202605290536` (Features 1 & 2). In the **Configuration XML** editor:
 - Hover `${key}` → HTML popup (native style, "Press F2 for focus"): per-env value table from
@@ -111,14 +135,16 @@ definition.
   or fabricate. General Mule precedence (deployment>system>environment>application>global; multiple
   config files = **first-wins**) encoded for real-world projects.
 
-## Future feature backlog (DO NOT BUILD — architecture should leave room)
-Env value comparison popup (part of F1) · quick env switcher · "find all usages" of a
-property · markers/quick-fixes for undefined or unused properties · quick-open env file ·
-DataWeave `p('...')` hover. List exists only so the module/infra design anticipates them.
+## Future feature backlog — EMPTY (2026-06-09: everything below was built; see Status)
+~~Env value comparison popup~~ (built as the project-wide **Env Comparison view**) · ~~quick env
+switcher~~ · ~~"find all usages"~~ · ~~markers/quick-fixes for undefined or unused properties~~ ·
+~~quick-open env file~~ · ~~DataWeave `p('...')` hover~~. Remaining ideas only: run-config editing
+mode for the env switcher; destructive "remove unused key" quick fix (deliberately deferred);
+optional `com.studioqol.tests` tycho-surefire fragment for the pure logic (scanLine / validator /
+comparison model).
 
-> **DataWeave `p('...')` hover** was investigated and is **not feasible via supported APIs** (closed
-> Xtext editor; no external hover hook). See `research/feature2-dataweave-hover.md` for full findings
-> and the unsupported routes a future agent could spike.
+> **DataWeave `p('...')` hover**: the earlier "not feasible via supported APIs" verdict applied only
+> to Xtext-internal routes; it was built at the SWT level. See `research/feature2-dataweave-hover.md`.
 
 ---
 
