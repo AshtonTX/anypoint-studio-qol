@@ -144,6 +144,18 @@
       <persistent value="false"/>
    </extension>
 
+   <extension point="org.eclipse.ui.views">
+      <category
+            id="com.studioqol.views"
+            name="Studio QoL"/>
+      <view
+            id="com.studioqol.view.envComparison"
+            name="Env Comparison"
+            category="com.studioqol.views"
+            class="com.studioqol.feature.compare.EnvComparisonView"
+            icon="icons/env_switch.png"/>
+   </extension>
+
    <!-- Quick fixes. Registered per concrete type — the resolution registry does not walk subtypes. -->
    <extension point="org.eclipse.ui.ide.markerResolution">
       <markerResolutionGenerator
