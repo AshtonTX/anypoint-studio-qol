@@ -4,15 +4,46 @@ import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 
 /**
- * Persists the last-launched environment per project in the workspace instance preferences, so the
- * active-env highlight survives Studio restarts. Updated by {@link LaunchEnvTracker} on each launch.
+ * Persists the active environment per project in the workspace instance preferences, so the
+ * active-env highlight survives Studio restarts. Two namespaces: the last-LAUNCHED env (updated by
+ * {@link LaunchEnvTracker} on each launch) and an explicit MANUAL override (set by the env
+ * switcher, outranks launches until cleared via its "Auto" item).
  */
 public final class ActiveEnvStore {
 
 	private static final String NODE = "com.studioqol";
 	private static final String PREFIX = "activeEnv.";
+	private static final String MANUAL_PREFIX = "manualEnv.";
 
 	private ActiveEnvStore() {
+	}
+
+	/** The user's explicit env choice for a project, or {@code null} when on automatic. */
+	public static String getManual(String projectName) {
+		if (projectName == null || projectName.isEmpty()) {
+			return null;
+		}
+		String v = InstanceScope.INSTANCE.getNode(NODE).get(MANUAL_PREFIX + projectName, null);
+		return (v == null || v.isBlank()) ? null : v;
+	}
+
+	public static void setManual(String projectName, String env) {
+		if (projectName == null || projectName.isEmpty() || env == null || env.isEmpty()) {
+			return;
+		}
+		IEclipsePreferences node = InstanceScope.INSTANCE.getNode(NODE);
+		node.put(MANUAL_PREFIX + projectName, env);
+		flush(node);
+	}
+
+	/** Back to automatic (launch-derived) resolution. */
+	public static void clearManual(String projectName) {
+		if (projectName == null || projectName.isEmpty()) {
+			return;
+		}
+		IEclipsePreferences node = InstanceScope.INSTANCE.getNode(NODE);
+		node.remove(MANUAL_PREFIX + projectName);
+		flush(node);
 	}
 
 	public static String get(String projectName) {
@@ -29,6 +60,10 @@ public final class ActiveEnvStore {
 		}
 		IEclipsePreferences node = InstanceScope.INSTANCE.getNode(NODE);
 		node.put(PREFIX + projectName, env);
+		flush(node);
+	}
+
+	private static void flush(IEclipsePreferences node) {
 		try {
 			node.flush();
 		} catch (Exception e) {

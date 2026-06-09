@@ -22,10 +22,11 @@ import org.eclipse.debug.core.ILaunchManager;
  * form). Searches every string/collection attribute, so it works regardless of which attribute the
  * Mule launch type stores arguments under.
  *
- * <p>Resolution order: (1) the most recently launched env-bearing config this session; (2) the env
- * persisted from a previous session by {@link LaunchEnvTracker} (survives restarts); (3) a single env
- * if all the project's configs agree on it. Distinct per-env configs with nothing launched are
- * ambiguous → {@code null} (the hover then shows all envs without a highlight).
+ * <p>Resolution order: (0) a manual override set via the env switcher (persists until "Auto" is
+ * chosen); (1) the most recently launched env-bearing config this session; (2) the env persisted
+ * from a previous session by {@link LaunchEnvTracker} (survives restarts); (3) a single env if all
+ * the project's configs agree on it. Distinct per-env configs with nothing launched are ambiguous
+ * → {@code null} (the hover then shows all envs without a highlight).
  */
 public final class ActiveEnvResolver {
 
@@ -38,6 +39,11 @@ public final class ActiveEnvResolver {
 		if (project == null || envProperty == null || envProperty.isEmpty()
 				|| DebugPlugin.getDefault() == null) {
 			return null;
+		}
+		// 0) An explicit user choice from the env switcher outranks everything until cleared.
+		String manual = ActiveEnvStore.getManual(project.getName());
+		if (manual != null) {
+			return manual;
 		}
 		Pattern pattern = Pattern.compile("-D" + Pattern.quote(envProperty) + "=(\\S+)");
 		try {
