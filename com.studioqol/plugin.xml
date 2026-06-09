@@ -45,6 +45,11 @@
             categoryId="com.studioqol.commands"
             name="Active Mule Environment"
             description="Choose which environment is highlighted in property hovers and views (does not change run configurations)"/>
+      <command
+            id="com.studioqol.command.openEnvFile"
+            categoryId="com.studioqol.commands"
+            name="Open Environment Properties File"
+            description="Open an envs/*.properties file of the active Mule project"/>
    </extension>
 
    <extension point="org.eclipse.ui.handlers">
@@ -54,6 +59,9 @@
       <handler
             commandId="com.studioqol.command.envSwitcher"
             class="com.studioqol.feature.envswitch.EnvSwitcherHandler"/>
+      <handler
+            commandId="com.studioqol.command.openEnvFile"
+            class="com.studioqol.feature.envswitch.OpenEnvFileHandler"/>
    </extension>
 
    <!-- Suggested binding only (rebindable in Preferences > Keys). Cmd/Ctrl+Shift+8 is unbound in
@@ -63,6 +71,11 @@
             sequence="M1+M2+8"
             commandId="com.studioqol.command.findUsages"
             contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
+      <key
+            sequence="M1+M2+9"
+            commandId="com.studioqol.command.openEnvFile"
+            contextId="org.eclipse.ui.contexts.window"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
    </extension>
 

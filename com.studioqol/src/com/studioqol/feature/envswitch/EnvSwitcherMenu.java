@@ -9,7 +9,10 @@ import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IContributionItem;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.actions.CompoundContributionItem;
+import org.eclipse.ui.menus.CommandContributionItem;
+import org.eclipse.ui.menus.CommandContributionItemParameter;
 
 import com.studioqol.StudioQolPlugin;
 import com.studioqol.core.DwProjectResolver;
@@ -57,7 +60,17 @@ public final class EnvSwitcherMenu extends CompoundContributionItem {
 		items.add(new Separator());
 		items.add(item("Auto (from launches)", !manual,
 				() -> ActiveEnvStore.clearManual(project.getName()), project));
+		items.add(new Separator());
+		items.add(openEnvFileItem());
 		return items.toArray(new IContributionItem[0]);
+	}
+
+	private static IContributionItem openEnvFileItem() {
+		CommandContributionItemParameter p = new CommandContributionItemParameter(
+				PlatformUI.getWorkbench(), null, "com.studioqol.command.openEnvFile",
+				CommandContributionItem.STYLE_PUSH);
+		p.label = "Open Environment File…";
+		return new CommandContributionItem(p);
 	}
 
 	private static IContributionItem item(String label, boolean checked, Runnable apply,
