@@ -18,6 +18,7 @@ import com.studioqol.core.resource.MuleResourceListener;
 import com.studioqol.core.resource.ProjectChangeBus;
 import com.studioqol.core.usage.UsageIndex;
 import com.studioqol.core.usage.UsageScanner;
+import com.studioqol.core.validate.ValidationScheduler;
 import com.studioqol.feature.dwhover.DwHoverInstaller;
 
 /**
@@ -37,6 +38,7 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	private MuleResourceListener resourceListener;
 	private LaunchEnvTracker launchTracker;
 	private DwHoverInstaller dwHoverInstaller;
+	private ValidationScheduler validationScheduler;
 
 	/** The shared per-project property index. Always available (does not require activation). */
 	public static ProjectCache<PropertyIndex> indexManager() {
@@ -65,6 +67,8 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 			launchTracker = new LaunchEnvTracker();
 			lm.addLaunchListener(launchTracker);
 		}
+		validationScheduler = new ValidationScheduler();
+		BUS.addListener(validationScheduler);
 		// Feature 2: install the global SWT filter that adds the DataWeave p('...') hover. addFilter
 		// must run on the UI thread; asyncExec defers it until the workbench event loop is pumping and
 		// avoids any chance of a UI-thread deadlock during bundle start.
@@ -87,6 +91,11 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 				lm.removeLaunchListener(launchTracker);
 			}
 			launchTracker = null;
+			if (validationScheduler != null) {
+				BUS.removeListener(validationScheduler);
+				validationScheduler.dispose();
+				validationScheduler = null;
+			}
 			if (dwHoverInstaller != null) {
 				Display display = Display.getDefault();
 				if (display != null && !display.isDisposed()) {
@@ -104,6 +113,11 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 			plugin = null;
 			super.stop(context);
 		}
+	}
+
+	/** The validation scheduler, or {@code null} before activation / after stop. */
+	public ValidationScheduler validationScheduler() {
+		return validationScheduler;
 	}
 
 	private static ILaunchManager launchManager() {

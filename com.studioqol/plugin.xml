@@ -85,4 +85,39 @@
             class="com.studioqol.feature.usages.PropertyUsageResultPage"/>
    </extension>
 
+   <!-- Property validation markers. Transient: startup validation repopulates them each session. -->
+   <extension point="org.eclipse.core.resources.markers" id="problem" name="Studio QoL Property Problem">
+      <super type="org.eclipse.core.resources.problemmarker"/>
+      <super type="org.eclipse.core.resources.textmarker"/>
+      <persistent value="false"/>
+      <attribute name="qolKey"/>
+      <attribute name="qolSecure"/>
+      <attribute name="qolMissingEnvs"/>
+   </extension>
+   <extension point="org.eclipse.core.resources.markers" id="problem.undefined" name="Undefined Property">
+      <super type="com.studioqol.problem"/>
+      <persistent value="false"/>
+   </extension>
+   <extension point="org.eclipse.core.resources.markers" id="problem.missingEnv" name="Property Missing in Environment">
+      <super type="com.studioqol.problem"/>
+      <persistent value="false"/>
+   </extension>
+   <extension point="org.eclipse.core.resources.markers" id="problem.unused" name="Unused Property">
+      <super type="com.studioqol.problem"/>
+      <persistent value="false"/>
+   </extension>
+
+   <!-- Quick fixes. Registered per concrete type — the resolution registry does not walk subtypes. -->
+   <extension point="org.eclipse.ui.ide.markerResolution">
+      <markerResolutionGenerator
+            markerType="com.studioqol.problem.undefined"
+            class="com.studioqol.feature.quickfix.PropertyMarkerResolutionGenerator"/>
+      <markerResolutionGenerator
+            markerType="com.studioqol.problem.missingEnv"
+            class="com.studioqol.feature.quickfix.PropertyMarkerResolutionGenerator"/>
+      <markerResolutionGenerator
+            markerType="com.studioqol.problem.unused"
+            class="com.studioqol.feature.quickfix.PropertyMarkerResolutionGenerator"/>
+   </extension>
+
 </plugin>
