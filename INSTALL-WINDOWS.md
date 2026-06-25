@@ -39,13 +39,52 @@ work laptop this is the single biggest thing that goes wrong, so check it first.
 
 ## Path A — Install a prebuilt update site (recommended)
 
-You need the **`repository`** folder produced by a build. It contains `artifacts.jar`,
-`content.jar`, a `features\` folder, and a `plugins\` folder. If you were given a `.zip`,
-extract it somewhere simple first, e.g. `C:\Users\<you>\Downloads\studioqol-repository\`.
+### Where the jars come from — someone builds it once
 
-> Keep the folder path **short and without spaces/OneDrive** if you can. Paths under
-> `C:\Users\<you>\OneDrive\...` sometimes confuse Eclipse's local-file picker because OneDrive
-> may report files as "online-only." A plain `Downloads` or `C:\dev\` path avoids this.
+The plugin isn't downloaded from anywhere; **one person builds it once** and the resulting
+files are shared with everyone else. "The build" just means running Maven on the source repo
+(the full steps are [Path B](#path-b--build-from-source-on-windows-then-install) — JDK 17 +
+`mvn -f pom.xml clean verify`). You can build on Windows, macOS, or Linux; the output is the
+same and is OS-independent.
+
+That one build produces, under `com.studioqol.repository\target\`:
+
+```
+com.studioqol.repository\target\
+├─ repository\                                  ← the p2 update site (the folder you install from)
+│  ├─ content.jar          ← metadata: what's installable
+│  ├─ artifacts.jar        ← metadata: where the bytes are
+│  ├─ features\
+│  │  └─ com.studioqol.feature_0.1.0.<timestamp>.jar    ← the feature
+│  └─ plugins\
+│     └─ com.studioqol_0.1.0.<timestamp>.jar           ← the actual plugin code
+└─ com.studioqol.repository-0.1.0-SNAPSHOT.zip  ← the SAME site, zipped (easiest to share)
+```
+
+So "where the .jar exists" = `…\target\repository\plugins\com.studioqol_*.jar` (the plugin) and
+`…\target\repository\features\com.studioqol.feature_*.jar` (the feature). The `content.jar` /
+`artifacts.jar` next to them are **not** the plugin — they're the catalog Studio reads to know
+the other two exist. You need the whole `repository\` folder (or the zip), not a single jar.
+
+**The easiest thing to pass around is the zip** —
+`com.studioqol.repository-0.1.0-SNAPSHOT.zip`. The builder just copies that one file out of
+`target\` and sends it; the recipient installs from it directly (see *Option 2* below) without
+extracting anything.
+
+> Don't have a build yet? Whoever has JDK 17 runs [Path B](#path-b--build-from-source-on-windows-then-install)
+> once, grabs the zip from `com.studioqol.repository\target\`, and shares it. Everyone else
+> uses Path A and never needs JDK or Maven.
+
+### Install it
+
+If you were handed the **zip**, use **Option 2** (no extracting needed). If you were handed an
+already-extracted **folder**, use **Option 1**.
+
+> Put the file/folder somewhere with a **short path, no spaces, and not under OneDrive**, e.g.
+> `C:\dev\studioqol\`. OneDrive paths sometimes confuse Eclipse's file picker because files may
+> be "online-only."
+
+**Option 1 — from the extracted `repository\` folder:**
 
 1. Open **Anypoint Studio**.
 2. **Help → Install New Software…**
@@ -59,6 +98,13 @@ extract it somewhere simple first, e.g. `C:\Users\<you>\Downloads\studioqol-repo
 7. You'll get an **unsigned content** security warning — this is expected (the plugin isn't
    code-signed). Click **Install anyway**.
 8. When prompted, **restart Anypoint Studio**.
+
+**Option 2 — straight from the zip (no extracting):**
+
+Identical to Option 1, except at step 3 click **Add… → Archive…** (instead of *Local…*) and
+select the `com.studioqol.repository-0.1.0-SNAPSHOT.zip` file. Studio reads the update site
+from inside the zip. Everything else (uncheck *Group items by category*, tick **Anypoint
+Studio QoL**, *Install anyway*, restart) is the same.
 
 Skip to [Verify the install](#verify-the-install).
 
