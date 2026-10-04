@@ -45,12 +45,18 @@ public final class PropertyNavigation {
 	 *         global / secure property. Empty when the key is unknown or has no locatable definition.
 	 */
 	public static List<Target> targets(PropertyIndex index, String key) {
+		boolean secure = key != null && key.startsWith("secure::");
+		return targets(index, secure ? key.substring("secure::".length()) : key, secure);
+	}
+
+	/** Secure references must never jump to an unrelated ordinary property with the same name. */
+	public static List<Target> targets(PropertyIndex index, String key, boolean secure) {
 		List<Target> out = new ArrayList<>();
 		if (index == null || key == null) {
 			return out;
 		}
 		PropertyDefinition def = index.lookup(key);
-		if (def == null) {
+		if (def == null || (secure && def.kind != PropertyDefinition.Kind.SECURE)) {
 			return out;
 		}
 		switch (def.kind) {

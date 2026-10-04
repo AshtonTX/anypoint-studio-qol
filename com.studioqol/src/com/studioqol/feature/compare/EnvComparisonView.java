@@ -1,7 +1,9 @@
 package com.studioqol.feature.compare;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.ResourcesPlugin;
@@ -27,8 +29,10 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.Text;
 import org.eclipse.ui.part.ViewPart;
 
 import com.studioqol.StudioQolPlugin;
@@ -43,7 +47,7 @@ import com.studioqol.core.resource.ProjectChangeBus;
 /**
  * Project-wide environment comparison: rows = env-file property keys, columns = env files, cells
  * rendered with the hover's semantics ((empty) / ••• secure / missing). The active env column is
- * marked in its header; a toolbar toggle filters to problem rows only. Auto-refreshes via the
+ * marked in its header; key search and toolbar toggles filter problems and differences. Auto-refreshes via the
  * {@link ProjectChangeBus} (debounced rebuild Job, viewer update on the UI thread).
  */
 public final class EnvComparisonView extends ViewPart {
@@ -54,40 +58,57 @@ public final class EnvComparisonView extends ViewPart {
 
 	private ComboViewer projectCombo;
 	private TableViewer viewer;
-	private IProject project;
+	private volatile IProject project;
 	private ComparisonModel model = ComparisonModel.build(null);
 	private String activeEnv;
 	private boolean problemsOnly;
+	private boolean differencesOnly;
+	private String keyQuery = "";
+	private Label summary;
+	private Display display;
+	private volatile boolean disposed;
+	private final AtomicLong refreshVersion = new AtomicLong();
+	private final AtomicLong activeEnvVersion = new AtomicLong();
 
 	/** Rebuilds the model off the UI thread (the index may rebuild), then updates the viewer. */
 	private final Job refreshJob = new Job("Studio QoL env comparison refresh") {
 		@Override
 		protected IStatus run(IProgressMonitor monitor) {
+			long version = refreshVersion.get();
 			IProject p = project;
 			ComparisonModel m = ComparisonModel.build(
 					p == null ? null : StudioQolPlugin.indexManager().get(p));
+			long environmentVersion = activeEnvVersion.get();
 			String env = p == null ? null
 					: ActiveEnvResolver.resolve(p, new ActiveEnvService().envPropertyName());
-			if (viewer != null && !viewer.getControl().isDisposed()) {
-				viewer.getControl().getDisplay().asyncExec(() -> setModel(m, env));
+			if (!disposed && !monitor.isCanceled() && !display.isDisposed()) {
+				display.asyncExec(() -> {
+					if (!disposed && version == refreshVersion.get() && p == project) {
+						setModel(m, env);
+						if (environmentVersion != activeEnvVersion.get()) {
+							updateActiveEnvHeaders();
+						}
+					}
+				});
 			}
 			return Status.OK_STATUS;
 		}
 	};
 
 	private final ProjectChangeBus.Listener busListener = (changed, kind) -> {
-		if (changed != null && changed.equals(project)) {
+		if (!disposed && changed != null && changed.equals(project)) {
 			if (kind == ProjectChangeBus.Kind.INDEX) {
-				refreshJob.cancel();
-				refreshJob.schedule(300);
+				requestRefresh(300);
 			} else {
-				getSite().getShell().getDisplay().asyncExec(this::updateActiveEnvHeaders);
+				activeEnvVersion.incrementAndGet();
+				display.asyncExec(this::updateActiveEnvHeaders);
 			}
 		}
 	};
 
 	@Override
 	public void createPartControl(Composite parent) {
+		display = parent.getDisplay();
 		refreshJob.setSystem(true);
 		GridLayoutFactory.fillDefaults().numColumns(2).margins(4, 4).applyTo(parent);
 
@@ -106,8 +127,25 @@ public final class EnvComparisonView extends ViewPart {
 			IProject selected = (IProject) ((IStructuredSelection) e.getSelection()).getFirstElement();
 			if (selected != null && !selected.equals(project)) {
 				project = selected;
-				refreshJob.cancel();
-				refreshJob.schedule();
+				setModel(ComparisonModel.build(null), null);
+				summary.setText("Loading environment properties…");
+				requestRefresh(0);
+			}
+		});
+
+		Label filterLabel = new Label(parent, SWT.NONE);
+		filterLabel.setText("Filter keys:");
+		Text search = new Text(parent, SWT.SEARCH | SWT.ICON_SEARCH | SWT.ICON_CANCEL);
+		search.setMessage("Search property names");
+		search.setToolTipText("Filter property names (case-insensitive). Values are not searched.");
+		GridDataFactory.fillDefaults().grab(true, false).applyTo(search);
+		search.addModifyListener(e -> {
+			keyQuery = search.getText();
+			refreshRows();
+		});
+		search.addListener(SWT.DefaultSelection, e -> {
+			if (e.detail == SWT.ICON_CANCEL) {
+				search.setText("");
 			}
 		});
 
@@ -120,23 +158,58 @@ public final class EnvComparisonView extends ViewPart {
 		viewer.addFilter(new ViewerFilter() {
 			@Override
 			public boolean select(Viewer v, Object parentElement, Object element) {
-				return !problemsOnly || ((ComparisonModel.Row) element).hasProblem;
+				return ((ComparisonModel.Row) element).matches(keyQuery, problemsOnly, differencesOnly);
 			}
 		});
 		viewer.getTable().addListener(SWT.MouseDoubleClick, e -> openCell(new Point(e.x, e.y)));
+		viewer.getTable().addListener(SWT.KeyDown, e -> {
+			if (e.keyCode == SWT.CR || e.keyCode == SWT.KEYPAD_CR) {
+				ComparisonModel.Row row = (ComparisonModel.Row) viewer.getStructuredSelection()
+						.getFirstElement();
+				if (row != null) {
+					EnvValue value = row.byEnv.get(activeEnv);
+					openValue(value != null && value.location != null ? value : firstValue(row));
+				}
+			}
+		});
+		viewer.getTable().setToolTipText("Double-click a cell to open its definition. "
+				+ "Press Enter to open the selected key in the active environment (or first definition).");
+
+		summary = new Label(parent, SWT.WRAP);
+		GridDataFactory.fillDefaults().span(2, 1).grab(true, false).applyTo(summary);
 
 		Action toggle = new Action("Problems only", IAction.AS_CHECK_BOX) {
 			@Override
 			public void run() {
 				problemsOnly = isChecked();
-				viewer.refresh();
+				refreshRows();
 			}
 		};
 		toggle.setToolTipText("Show only keys missing in at least one environment");
 		getViewSite().getActionBars().getToolBarManager().add(toggle);
+		Action differences = new Action("Differences only", IAction.AS_CHECK_BOX) {
+			@Override
+			public void run() {
+				differencesOnly = isChecked();
+				refreshRows();
+			}
+		};
+		differences.setToolTipText("Show keys with missing definitions or different stored values. "
+				+ "Encrypted values are compared as stored text and stay masked.");
+		getViewSite().getActionBars().getToolBarManager().add(differences);
 
+		setModel(model, null);
 		StudioQolPlugin.changeBus().addListener(busListener);
 		initProjects();
+	}
+
+	private void requestRefresh(long delay) {
+		if (disposed) {
+			return;
+		}
+		refreshVersion.incrementAndGet();
+		refreshJob.cancel();
+		refreshJob.schedule(delay);
 	}
 
 	private void initProjects() {
@@ -146,10 +219,11 @@ public final class EnvComparisonView extends ViewPart {
 				projects.add(p);
 			}
 		}
+		projects.sort(Comparator.comparing(IProject::getName, String.CASE_INSENSITIVE_ORDER));
 		projectCombo.setInput(projects);
 		IProject initial = DwProjectResolver.resolveActiveMuleProject();
-		if (initial == null && !projects.isEmpty()) {
-			initial = projects.get(0);
+		if (!projects.contains(initial)) {
+			initial = projects.isEmpty() ? null : projects.get(0);
 		}
 		if (initial != null) {
 			final IProject sel = initial;
@@ -162,16 +236,44 @@ public final class EnvComparisonView extends ViewPart {
 		if (viewer.getControl().isDisposed()) {
 			return;
 		}
+		boolean rebuildColumns = viewer.getTable().getColumnCount() == 0
+				|| !model.environments.equals(newModel.environments);
 		model = newModel;
 		activeEnv = newActiveEnv;
-		for (TableColumn column : viewer.getTable().getColumns()) {
-			column.dispose();
-		}
-		createColumn("Property", 180, null);
-		for (String env : model.environments) {
-			createColumn(headerFor(env), 160, env);
+		if (rebuildColumns) {
+			for (TableColumn column : viewer.getTable().getColumns()) {
+				column.dispose();
+			}
+			createColumn("Property", 180, null);
+			for (String env : model.environments) {
+				createColumn(headerFor(env), 160, env);
+			}
+		} else {
+			refreshHeaders();
 		}
 		viewer.setInput(model.rows);
+		updateSummary();
+	}
+
+	private void refreshRows() {
+		if (viewer != null && !viewer.getControl().isDisposed()) {
+			viewer.refresh();
+			updateSummary();
+		}
+	}
+
+	private void updateSummary() {
+		if (project == null) {
+			summary.setText("Open a Mule project to compare environment properties.");
+		} else if (model.rows.isEmpty()) {
+			summary.setText("No environment properties found in this project.");
+		} else {
+			int visible = viewer.getTable().getItemCount();
+			summary.setText(visible + " of " + model.rows.size() + " properties · "
+					+ model.environments.size() + " environments"
+					+ (visible == 0 ? " · No keys match the current filters." : ""));
+		}
+		summary.getParent().layout();
 	}
 
 	private void createColumn(String header, int width, String env) {
@@ -223,10 +325,14 @@ public final class EnvComparisonView extends ViewPart {
 	}
 
 	private void updateActiveEnvHeaders() {
-		if (viewer == null || viewer.getControl().isDisposed() || project == null) {
+		if (disposed || viewer == null || viewer.getControl().isDisposed() || project == null) {
 			return;
 		}
 		activeEnv = ActiveEnvResolver.resolve(project, new ActiveEnvService().envPropertyName());
+		refreshHeaders();
+	}
+
+	private void refreshHeaders() {
 		for (TableColumn column : viewer.getTable().getColumns()) {
 			String env = (String) column.getData();
 			if (env != null) {
@@ -244,6 +350,10 @@ public final class EnvComparisonView extends ViewPart {
 		ComparisonModel.Row row = (ComparisonModel.Row) cell.getElement();
 		String env = (String) viewer.getTable().getColumn(cell.getColumnIndex()).getData();
 		EnvValue value = env != null ? row.byEnv.get(env) : firstValue(row);
+		openValue(value);
+	}
+
+	private void openValue(EnvValue value) {
 		if (value != null && value.location != null) {
 			PropertyNavigation.open(value.location);
 		}
@@ -268,6 +378,8 @@ public final class EnvComparisonView extends ViewPart {
 
 	@Override
 	public void dispose() {
+		disposed = true;
+		refreshVersion.incrementAndGet();
 		StudioQolPlugin.changeBus().removeListener(busListener);
 		refreshJob.cancel();
 		super.dispose();

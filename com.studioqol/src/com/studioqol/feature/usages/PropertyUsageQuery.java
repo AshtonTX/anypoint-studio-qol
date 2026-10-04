@@ -31,12 +31,14 @@ public final class PropertyUsageQuery implements ISearchQuery {
 
 	private final IProject project;
 	private final String key;
+	private final boolean secure;
 	private final String display;
 	private final PropertyUsageResult result;
 
 	public PropertyUsageQuery(IProject project, String key, boolean secure) {
 		this.project = project;
 		this.key = key;
+		this.secure = secure;
 		this.display = secure ? "secure::" + key : key;
 		this.result = new PropertyUsageResult(this);
 	}
@@ -44,6 +46,9 @@ public final class PropertyUsageQuery implements ISearchQuery {
 	@Override
 	public IStatus run(IProgressMonitor monitor) {
 		result.removeAll();
+		if (monitor != null && monitor.isCanceled()) {
+			return Status.CANCEL_STATUS;
+		}
 		UsageIndex usages = StudioQolPlugin.usageManager().get(project);
 		if (usages == null) {
 			return Status.OK_STATUS;
@@ -52,6 +57,9 @@ public final class PropertyUsageQuery implements ISearchQuery {
 		for (PropertyUsage usage : usages.usagesOf(key)) {
 			if (monitor != null && monitor.isCanceled()) {
 				return Status.CANCEL_STATUS;
+			}
+			if (usage.secure != secure) {
+				continue;
 			}
 			IFile file = usage.location.file;
 			UsageMatchEntry entry = new UsageMatchEntry(file, usage.location.line,

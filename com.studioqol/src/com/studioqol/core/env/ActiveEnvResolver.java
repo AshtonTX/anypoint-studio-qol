@@ -4,8 +4,6 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -36,8 +34,7 @@ public final class ActiveEnvResolver {
 	}
 
 	public static String resolve(IProject project, String envProperty) {
-		if (project == null || envProperty == null || envProperty.isEmpty()
-				|| DebugPlugin.getDefault() == null) {
+		if (project == null || envProperty == null || envProperty.isEmpty()) {
 			return null;
 		}
 		// 0) An explicit user choice from the env switcher outranks everything until cleared.
@@ -45,7 +42,9 @@ public final class ActiveEnvResolver {
 		if (manual != null) {
 			return manual;
 		}
-		Pattern pattern = Pattern.compile("-D" + Pattern.quote(envProperty) + "=(\\S+)");
+		if (DebugPlugin.getDefault() == null) {
+			return ActiveEnvStore.get(project.getName(), envProperty);
+		}
 		try {
 			ILaunchManager lm = DebugPlugin.getDefault().getLaunchManager();
 
@@ -56,14 +55,14 @@ public final class ActiveEnvResolver {
 				if (cfg == null || !belongsTo(cfg, project)) {
 					continue;
 				}
-				String value = findEnvArg(cfg, pattern);
+				String value = findEnvArg(cfg, envProperty);
 				if (value != null) {
 					return value;
 				}
 			}
 
 			// 2) Persisted from a previous session (LaunchEnvTracker records each launch).
-			String stored = ActiveEnvStore.get(project.getName());
+			String stored = ActiveEnvStore.get(project.getName(), envProperty);
 			if (stored != null) {
 				return stored;
 			}
@@ -76,7 +75,7 @@ public final class ActiveEnvResolver {
 				if (!belongsTo(cfg, project)) {
 					continue;
 				}
-				String value = findEnvArg(cfg, pattern);
+				String value = findEnvArg(cfg, envProperty);
 				if (value != null) {
 					envs.add(value);
 					last = value;
@@ -97,7 +96,7 @@ public final class ActiveEnvResolver {
 			return null;
 		}
 		try {
-			return findEnvArg(cfg, Pattern.compile("-D" + Pattern.quote(envProperty) + "=(\\S+)"));
+			return findEnvArg(cfg, envProperty);
 		} catch (CoreException e) {
 			return null;
 		}
@@ -140,7 +139,7 @@ public final class ActiveEnvResolver {
 		}
 	}
 
-	private static String findEnvArg(ILaunchConfiguration cfg, Pattern pattern) throws CoreException {
+	private static String findEnvArg(ILaunchConfiguration cfg, String envProperty) throws CoreException {
 		Map<String, Object> attributes = cfg.getAttributes();
 		if (attributes == null) {
 			return null;
@@ -150,9 +149,9 @@ public final class ActiveEnvResolver {
 			if (text == null) {
 				continue;
 			}
-			Matcher m = pattern.matcher(text);
-			if (m.find()) {
-				return unquote(m.group(1));
+			String env = EnvArguments.find(text, envProperty);
+			if (env != null) {
+				return env;
 			}
 		}
 		return null;
@@ -174,13 +173,4 @@ public final class ActiveEnvResolver {
 		return null;
 	}
 
-	private static String unquote(String v) {
-		if (v.length() >= 2) {
-			char c = v.charAt(0);
-			if ((c == '"' || c == '\'') && v.charAt(v.length() - 1) == c) {
-				return v.substring(1, v.length() - 1);
-			}
-		}
-		return v;
-	}
 }

@@ -47,20 +47,34 @@ public final class ActiveEnvStore {
 	}
 
 	public static String get(String projectName) {
+		return get(projectName, ActiveEnvService.DEFAULT_ENV_PROP);
+	}
+
+	public static String get(String projectName, String envProperty) {
 		if (projectName == null || projectName.isEmpty()) {
 			return null;
 		}
-		String v = InstanceScope.INSTANCE.getNode(NODE).get(PREFIX + projectName, null);
+		String v = InstanceScope.INSTANCE.getNode(NODE).get(launchKey(projectName, envProperty), null);
 		return (v == null || v.isBlank()) ? null : v;
 	}
 
 	public static void set(String projectName, String env) {
+		set(projectName, ActiveEnvService.DEFAULT_ENV_PROP, env);
+	}
+
+	public static void set(String projectName, String envProperty, String env) {
 		if (projectName == null || projectName.isEmpty() || env == null || env.isEmpty()) {
 			return;
 		}
 		IEclipsePreferences node = InstanceScope.INSTANCE.getNode(NODE);
-		node.put(PREFIX + projectName, env);
+		node.put(launchKey(projectName, envProperty), env);
 		flush(node);
+	}
+
+	private static String launchKey(String projectName, String envProperty) {
+		// Preserve existing default-selector preferences across upgrades.
+		return ActiveEnvService.DEFAULT_ENV_PROP.equals(envProperty) ? PREFIX + projectName
+				: "activeEnvByProperty." + envProperty.length() + ":" + envProperty + ":" + projectName;
 	}
 
 	private static void flush(IEclipsePreferences node) {
