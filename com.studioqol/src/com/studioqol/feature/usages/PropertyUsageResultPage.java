@@ -31,7 +31,8 @@ public final class PropertyUsageResultPage extends AbstractTextSearchViewPage {
 			public String getText(Object element) {
 				UsageMatchEntry entry = (UsageMatchEntry) element;
 				String origin = entry.origin == PropertyUsage.Origin.DW_CALL ? "  [DataWeave]" : "";
-				return entry.file.getName() + ":" + entry.line + "    " + entry.lineText + origin;
+				return entry.file.getProjectRelativePath().toString() + ":" + entry.line + "    "
+						+ entry.lineText + origin;
 			}
 		});
 		viewer.setComparator(new ViewerComparator() {

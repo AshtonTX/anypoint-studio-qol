@@ -48,7 +48,7 @@ public class PropertyHyperlinkDetector extends AbstractHyperlinkDetector {
 		if (index == null) {
 			return null;
 		}
-		List<Target> targets = PropertyNavigation.targets(index, pk.key);
+		List<Target> targets = PropertyNavigation.targets(index, pk.key, pk.secure);
 		if (targets.isEmpty()) {
 			return null;
 		}

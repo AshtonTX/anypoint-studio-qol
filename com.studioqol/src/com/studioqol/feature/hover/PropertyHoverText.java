@@ -48,10 +48,12 @@ public final class PropertyHoverText {
 		if (key == null || key.isEmpty()) {
 			return null;
 		}
+		if (key.startsWith("secure::")) {
+			key = key.substring("secure::".length());
+			secure = true;
+		}
 		if (secure) {
-			// The ${secure::key} form is placeholder-only; DataWeave callers always pass secure=false
-			// (a secure-properties key still renders via the SECURE kind branch below with its style).
-			return secureHtml("${secure::" + esc(key) + "}", null);
+			return secureHtml(style.label("secure::" + key), null);
 		}
 		if (key.equals(envProperty)) {
 			return runtimeOnlyHtml(key, activeEnv, index, style);
@@ -84,17 +86,14 @@ public final class PropertyHoverText {
 		b.append("<br>");
 		for (String env : index.environments()) {
 			EnvValue ev = def.valuesByEnv.get(env);
-			if (ev == null) {
-				continue;
-			}
 			boolean active = env.equals(activeEnv);
 			if (active) {
 				b.append("▶ ");
 			}
 			b.append("<b>").append(esc(env)).append("</b> : ");
-			String value = displayHtml(ev);
+			String value = ev == null ? "<i>(missing)</i>" : displayHtml(ev);
 			b.append(active ? "<b>" + value + "</b>" : value);
-			if (ev.location != null && ev.location.file != null) {
+			if (ev != null && ev.location != null && ev.location.file != null) {
 				b.append("  <i>(").append(esc(ev.location.file.getName())).append(':')
 						.append(ev.location.line).append(")</i>");
 			}

@@ -1,10 +1,36 @@
 # CLAUDE.md — Anypoint Studio QoL Plugin
 
 > Working name: **Anypoint Studio QoL** (bundle id: **`com.studioqol`**).
-> This is a **multi-feature** quality-of-life plugin for Anypoint Studio. Architect it so
-> features are independent modules over shared infrastructure. **Feature 1 (the only one
-> built for now): Property Value Hover.** Leave clean seams for future features — don't
-> build them yet.
+> This is a multi-feature quality-of-life plugin for Anypoint Studio. Keep features independent
+> over the shared `core/` infrastructure. **README.md is the current user/build guide.**
+
+## Current development guidance (2026-10-04)
+
+- Build and test with **JDK 17 + `./mvnw -B clean verify`** (`.\mvnw.cmd` on Windows).
+  The wrapper pins Maven 3.9.11 for Tycho 4.0.13. Host OS/architecture are selected automatically.
+  No Studio installation is needed for the build or headless tests.
+- `com.studioqol.tests/` is a headless JUnit fragment; add behavior-focused regressions there.
+  GitHub Actions checks Linux, Windows, and macOS and uploads the installable p2 ZIP.
+- The environment selector is configurable in **Preferences → Studio QoL**. Default: `env`.
+  Preserve manual override behavior; do not edit run configurations implicitly.
+- Properties use Java escape/continuation semantics. Add-key fixes escape keys, avoid duplicates,
+  and use Eclipse text buffers to preserve unsaved edits. Never copy values between environments.
+- Env Comparison supports key search, problems/differences filters, and keyboard navigation.
+  Keep secure values masked and filter only names. A ciphertext difference does not establish a
+  difference in decrypted values.
+- Read **README.md → Supported scope and verification** before extending property resolution.
+  Test Studio integration manually using that checklist before releasing.
+- Production hooks use public Eclipse APIs where feasible. WTP provisional APIs and the DataWeave
+  widget matcher remain version-sensitive; document and recheck them after Studio upgrades.
+- The architecture/build proposals below are historical context, not current implementation
+  requirements. In particular, there is no internal feature registry, and the build uses the public
+  Eclipse 2024-03 target, not a hardcoded local Studio installation.
+
+Preference UI references: [Eclipse preference page extension](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/reference/extension-points/org_eclipse_ui_preferencePages.html)
+and [PreferencePage lifecycle](https://help.eclipse.org/latest/topic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/jface/preference/PreferencePage.html).
+Property resolution reference: [Mule property configuration](https://docs.mulesoft.com/mule-runtime/latest/configuring-properties).
+
+## Historical implementation notes
 
 ## Status (2026-06-09) — ALL FEATURES BUILT (backlog emptied; build green, manual Studio verification pending)
 The entire former backlog is now implemented on shared infra (commits `9515d0a`…; one per milestone):

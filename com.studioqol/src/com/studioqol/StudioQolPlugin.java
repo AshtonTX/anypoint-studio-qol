@@ -7,6 +7,7 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.DebugPlugin;
 import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
@@ -37,7 +38,8 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 	private static StudioQolPlugin plugin;
 	private MuleResourceListener resourceListener;
 	private LaunchEnvTracker launchTracker;
-	private DwHoverInstaller dwHoverInstaller;
+	private volatile DwHoverInstaller dwHoverInstaller;
+	private Display editorDisplay;
 	private ValidationScheduler validationScheduler;
 
 	/** The shared per-project property index. Always available (does not require activation). */
@@ -69,14 +71,26 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 		}
 		validationScheduler = new ValidationScheduler();
 		BUS.addListener(validationScheduler);
-		// Feature 2: install the global SWT filter that adds the DataWeave p('...') hover. addFilter
-		// must run on the UI thread; asyncExec defers it until the workbench event loop is pumping and
-		// avoids any chance of a UI-thread deadlock during bundle start.
-		dwHoverInstaller = new DwHoverInstaller();
-		Display display = Display.getDefault();
-		if (display != null && !display.isDisposed()) {
-			display.asyncExec(() -> dwHoverInstaller.install());
+		installEditorHooks();
+	}
+
+	/** Called again from workbench startup; headless consumers never create an SWT display. */
+	public synchronized void installEditorHooks() {
+		if (dwHoverInstaller != null || !PlatformUI.isWorkbenchRunning()) {
+			return;
 		}
+		Display display = PlatformUI.getWorkbench().getDisplay();
+		if (display.isDisposed()) {
+			return;
+		}
+		DwHoverInstaller installer = new DwHoverInstaller();
+		dwHoverInstaller = installer;
+		editorDisplay = display;
+		display.asyncExec(() -> {
+			if (plugin == this && dwHoverInstaller == installer && !display.isDisposed()) {
+				installer.install();
+			}
+		});
 	}
 
 	@Override
@@ -97,15 +111,17 @@ public class StudioQolPlugin extends AbstractUIPlugin {
 				validationScheduler = null;
 			}
 			if (dwHoverInstaller != null) {
-				Display display = Display.getDefault();
+				DwHoverInstaller installer = dwHoverInstaller;
+				dwHoverInstaller = null; // cancel any pending installation callback
+				Display display = editorDisplay;
 				if (display != null && !display.isDisposed()) {
 					try {
-						display.syncExec(() -> dwHoverInstaller.uninstall());
+						display.syncExec(installer::uninstall);
 					} catch (RuntimeException e) {
 						// Display may already be tearing down on shutdown — safe to ignore.
 					}
 				}
-				dwHoverInstaller = null;
+				editorDisplay = null;
 			}
 			INDEX.dispose();
 			USAGES.dispose();

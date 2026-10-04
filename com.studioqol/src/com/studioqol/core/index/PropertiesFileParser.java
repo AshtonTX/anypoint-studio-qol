@@ -1,7 +1,12 @@
 package com.studioqol.core.index;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.text.BadLocationException;
@@ -12,13 +17,13 @@ import org.eclipse.jface.text.IRegion;
 import com.studioqol.core.ResourceText;
 
 /**
- * Minimal {@code java.util.Properties}-style line parser that ALSO records the source location of
- * each key (so Ctrl+click can land on the definition) and flags encrypted {@code ![...]} values.
- * Single-line values only (the convention's env files have no backslash continuations).
+ * {@link Properties}-compatible parser that also records the source location of each key and
+ * flags encrypted {@code ![...]} values. Escapes and continued lines are decoded before indexing;
+ * the last occurrence of a duplicate key wins, just as it does when loading a properties file.
  */
 public final class PropertiesFileParser {
 
-	/** One parsed entry: raw value text, the KEY's location, and its state. */
+	/** One parsed entry: decoded value text, the KEY's source location, and its state. */
 	public static final class Entry {
 		public final String value;
 		public final SourceLocation location;
@@ -35,11 +40,12 @@ public final class PropertiesFileParser {
 	}
 
 	public static Map<String, Entry> parse(IFile file) {
+		return parse(file, ResourceText.read(file));
+	}
+
+	/** Parses a text snapshot, including an unsaved editor document. {@code file} may be null. */
+	public static Map<String, Entry> parse(IFile file, String text) {
 		Map<String, Entry> out = new LinkedHashMap<>();
-		if (file == null || !file.exists()) {
-			return out;
-		}
-		String text = ResourceText.read(file);
 		if (text == null) {
 			return out;
 		}
@@ -50,41 +56,45 @@ public final class PropertiesFileParser {
 				IRegion info = doc.getLineInformation(line);
 				int lineStart = info.getOffset();
 				String raw = doc.get(lineStart, info.getLength());
-				int n = raw.length();
 				int i = skipWs(raw, 0);
-				if (i >= n) {
+				if (i >= raw.length()) {
 					continue; // blank line
 				}
 				char c0 = raw.charAt(i);
 				if (c0 == '#' || c0 == '!') {
 					continue; // comment
 				}
-				int keyStart = i;
-				StringBuilder key = new StringBuilder();
-				while (i < n) {
-					char ch = raw.charAt(i);
-					if (ch == '\\' && i + 1 < n) {
-						key.append(raw.charAt(i + 1));
-						i += 2;
-						continue;
+				int firstLine = line;
+				int entryStart = lineStart;
+				int keyStart = lineStart + i;
+				StringBuilder logical = new StringBuilder();
+				List<Integer> offsets = new ArrayList<>();
+				while (true) {
+					boolean continued = hasContinuation(raw);
+					int end = raw.length() - (continued ? 1 : 0);
+					for (; i < end; i++) {
+						logical.append(raw.charAt(i));
+						offsets.add(lineStart + i);
 					}
-					if (ch == '=' || ch == ':' || ch == ' ' || ch == '\t' || ch == '\f') {
+					if (!continued || line + 1 >= lines) {
 						break;
 					}
-					key.append(ch);
-					i++;
+					info = doc.getLineInformation(++line);
+					lineStart = info.getOffset();
+					raw = doc.get(lineStart, info.getLength());
+					i = skipWs(raw, 0);
 				}
-				int keyEnd = i;
-				String k = key.toString();
-				if (k.isEmpty()) {
+				Properties entry = new Properties();
+				try {
+					entry.load(new StringReader(text.substring(entryStart, lineStart + info.getLength())));
+				} catch (IllegalArgumentException | IOException e) {
+					continue; // malformed Unicode escape; preserve other valid entries
+				}
+				if (entry.isEmpty()) {
 					continue;
 				}
-				i = skipWs(raw, i);
-				if (i < n && (raw.charAt(i) == '=' || raw.charAt(i) == ':')) {
-					i++;
-				}
-				i = skipWs(raw, i);
-				String value = raw.substring(i);
+				String k = entry.stringPropertyNames().iterator().next();
+				String value = entry.getProperty(k);
 				EnvValue.State state;
 				if (isEncrypted(value)) {
 					state = EnvValue.State.SECURE;
@@ -93,14 +103,39 @@ public final class PropertiesFileParser {
 				} else {
 					state = EnvValue.State.PRESENT;
 				}
-				SourceLocation loc = new SourceLocation(file, line + 1, lineStart + keyStart,
+				int keyLength = keyLength(logical);
+				int keyEnd = keyLength == 0 ? keyStart : offsets.get(keyLength - 1) + 1;
+				SourceLocation loc = new SourceLocation(file, firstLine + 1, keyStart,
 						keyEnd - keyStart);
-				out.putIfAbsent(k, new Entry(value, loc, state));
+				out.put(k, new Entry(value, loc, state));
 			} catch (BadLocationException e) {
 				// skip malformed line
 			}
 		}
 		return out;
+	}
+
+	private static boolean hasContinuation(String line) {
+		int slashes = 0;
+		for (int i = line.length() - 1; i >= 0 && line.charAt(i) == '\\'; i--) {
+			slashes++;
+		}
+		return slashes % 2 != 0;
+	}
+
+	private static int keyLength(CharSequence line) {
+		int i = 0;
+		while (i < line.length()) {
+			char ch = line.charAt(i);
+			if (ch == '\\' && i + 1 < line.length()) {
+				i += 2;
+			} else if (ch == '=' || ch == ':' || ch == ' ' || ch == '\t' || ch == '\f') {
+				break;
+			} else {
+				i++;
+			}
+		}
+		return i;
 	}
 
 	private static int skipWs(String s, int i) {

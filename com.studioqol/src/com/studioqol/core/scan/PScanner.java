@@ -12,10 +12,9 @@ import java.util.List;
  * DataWeave hover ({@link #find}) and whole-file usage scanning.
  *
  * <p>Accepts single- or double-quoted keys and whitespace around the call ({@code p ( 'k' )}). Rejects
- * identifier-prefixed look-alikes ({@code map(}, {@code prop(}, {@code dump(}) by requiring the
- * character before {@code p} to be a non-identifier character (the {@code ::} in {@code Mule::p}
- * qualifies, since {@code ':'} is not an identifier character). Multi-line {@code p(\n'k'\n)} is a
- * documented non-goal.
+ * identifier-prefixed look-alikes and other modules' functions. Only a complete call with one
+ * literal argument is recognized; concatenated and interpolated keys remain unresolved.
+ * Multi-line {@code p(\n'k'\n)} is a documented non-goal.
  */
 public final class PScanner {
 
@@ -46,8 +45,8 @@ public final class PScanner {
 			if (line.charAt(i) != 'p') {
 				continue;
 			}
-			if (i > 0 && isIdentifierChar(line.charAt(i - 1))) {
-				continue; // part of a longer identifier (map, prop, dump, …)
+			if (!isPropertyFunction(line, i)) {
+				continue;
 			}
 			int j = skipWhitespace(line, i + 1);
 			if (j >= n || line.charAt(j) != '(') {
@@ -61,27 +60,78 @@ public final class PScanner {
 			if (quote != '\'' && quote != '"') {
 				continue;
 			}
-			int keyStart = j + 1;
-			int k = keyStart;
+			StringBuilder key = new StringBuilder();
+			boolean literal = true;
+			int k = j + 1;
 			while (k < n && line.charAt(k) != quote) {
-				k++;
+				char ch = line.charAt(k++);
+				if (ch == '$') {
+					literal = false; // DataWeave interpolation (including $name) is runtime-only
+				} else if (ch == '\\') {
+					if (k >= n) {
+						literal = false;
+						break;
+					}
+					ch = line.charAt(k++);
+					switch (ch) {
+					case '\\': case '\'': case '"': case '$': case '`': break;
+					case 'n': ch = '\n'; break;
+					case 'r': ch = '\r'; break;
+					case 't': ch = '\t'; break;
+					case 'b': ch = '\b'; break;
+					case 'f': ch = '\f'; break;
+					case 'u':
+						if (k + 4 > n) {
+							literal = false;
+						} else {
+							try {
+								ch = (char) Integer.parseInt(line.substring(k, k + 4), 16);
+								k += 4;
+							} catch (NumberFormatException e) {
+								literal = false;
+							}
+						}
+						break;
+					default: literal = false;
+					}
+				}
+				key.append(ch);
 			}
 			if (k >= n) {
 				continue; // unterminated string on this line
 			}
-			String key = line.substring(keyStart, k);
-			if (key.isEmpty()) {
+			if (!literal || key.length() == 0) {
 				continue;
 			}
-			int end = k + 1; // include the closing quote
-			int afterQuote = skipWhitespace(line, end);
-			if (afterQuote < n && line.charAt(afterQuote) == ')') {
-				end = afterQuote + 1; // include the closing paren when present
+			int afterQuote = skipWhitespace(line, k + 1);
+			if (afterQuote >= n || line.charAt(afterQuote) != ')') {
+				continue;
 			}
-			hits.add(new PHit(key, i, end));
+			int end = afterQuote + 1;
+			hits.add(new PHit(key.toString(), i, end));
 			i = end - 1; // resume after this token
 		}
 		return hits;
+	}
+
+	private static boolean isPropertyFunction(String line, int at) {
+		if (at > 0 && isIdentifierChar(line.charAt(at - 1))) {
+			return false;
+		}
+		int before = at - 1;
+		while (before >= 0 && Character.isWhitespace(line.charAt(before))) {
+			before--;
+		}
+		if (before >= 0 && line.charAt(before) == '.') {
+			return false;
+		}
+		if (before >= 0 && line.charAt(before) == ':') {
+			int moduleStart = at - "Mule::".length();
+			return moduleStart >= 0 && line.startsWith("Mule::", moduleStart)
+					&& (moduleStart == 0 || (!isIdentifierChar(line.charAt(moduleStart - 1))
+							&& line.charAt(moduleStart - 1) != ':' && line.charAt(moduleStart - 1) != '.'));
+		}
+		return true;
 	}
 
 	/**

@@ -2,6 +2,12 @@
 <?eclipse version="3.4"?>
 <plugin>
 
+   <extension point="org.eclipse.ui.preferencePages">
+      <page id="com.studioqol.preferences"
+            name="Studio QoL"
+            class="com.studioqol.ui.preferences.StudioQolPreferencePage"/>
+   </extension>
+
    <!-- Feature 1: Property Value Hover.
         Registered as a WTP/SSE documentationTextHover on the XML default partition so it fires in
         Studio's "Configuration XML" editor. The built-in XML hover (XMLTagInfoHoverProcessor)

@@ -79,7 +79,12 @@ public final class UsageScanner {
 					}
 				}
 				for (PScanner.PHit hit : PScanner.scanLine(raw)) {
-					add(byKey, new PropertyUsage(hit.key, false,
+					boolean secure = hit.key.startsWith("secure::");
+					String key = secure ? hit.key.substring("secure::".length()) : hit.key;
+					if (key.isEmpty()) {
+						continue;
+					}
+					add(byKey, new PropertyUsage(key, secure,
 							location(file, line, info, hit.start, hit.end),
 							PropertyUsage.Origin.DW_CALL));
 				}
