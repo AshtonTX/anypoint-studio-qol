@@ -13,7 +13,7 @@ public final class EnvValue {
 	}
 
 	public final String env;             // "local", "test", "prod", "example", ...
-	public final String rawValue;        // verbatim text after the separator; "" when empty
+	public final String rawValue;        // decoded properties value, without resolving ${...}; "" when empty
 	public final SourceLocation location; // location of the KEY in that env file (may be null)
 	public final State state;
 

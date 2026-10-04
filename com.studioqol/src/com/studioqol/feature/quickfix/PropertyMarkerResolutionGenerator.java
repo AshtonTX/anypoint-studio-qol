@@ -1,19 +1,22 @@
 package com.studioqol.feature.quickfix;
 
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.core.filebuffers.FileBuffers;
+import org.eclipse.core.filebuffers.ITextFileBuffer;
+import org.eclipse.core.filebuffers.ITextFileBufferManager;
+import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.jface.text.IDocument;
 import org.eclipse.ui.IMarkerResolution;
 import org.eclipse.ui.IMarkerResolutionGenerator2;
 
 import com.studioqol.StudioQolPlugin;
 import com.studioqol.core.PropertyNavigation;
-import com.studioqol.core.ResourceText;
 import com.studioqol.core.env.EnvFiles;
 import com.studioqol.core.index.PropertyIndex;
 import com.studioqol.core.validate.QolMarkers;
@@ -121,16 +124,32 @@ public final class PropertyMarkerResolutionGenerator implements IMarkerResolutio
 
 		@Override
 		public void run(IMarker marker) {
+			ITextFileBufferManager manager = FileBuffers.getTextFileBufferManager();
+			boolean connected = false;
 			try {
-				String text = ResourceText.read(file);
-				String prefix = (text == null || text.isEmpty() || text.endsWith("\n")) ? "" : "\n";
-				String charset = file.getCharset();
-				byte[] bytes = (prefix + key + "=\n")
-						.getBytes(charset == null ? "ISO-8859-1" : charset);
-				file.appendContents(new ByteArrayInputStream(bytes),
-						IResource.FORCE | IResource.KEEP_HISTORY, null);
+				manager.connect(file.getFullPath(), LocationKind.IFILE, null);
+				connected = true;
+				ITextFileBuffer buffer = manager.getTextFileBuffer(file.getFullPath(), LocationKind.IFILE);
+				IDocument document = buffer.getDocument();
+				String suffix = PropertyFileEdits.missingKeySuffix(document.get(), key);
+				if (suffix.isEmpty()) {
+					return; // a stale marker must not append a duplicate or overwrite an existing value
+				}
+				boolean wasDirty = buffer.isDirty();
+				document.replace(document.getLength(), 0, suffix);
+				if (!wasDirty) {
+					buffer.commit(null, false);
+				}
 			} catch (Exception e) {
 				StudioQolPlugin.log(e);
+			} finally {
+				if (connected) {
+					try {
+						manager.disconnect(file.getFullPath(), LocationKind.IFILE, null);
+					} catch (Exception e) {
+						StudioQolPlugin.log(e);
+					}
+				}
 			}
 		}
 	}

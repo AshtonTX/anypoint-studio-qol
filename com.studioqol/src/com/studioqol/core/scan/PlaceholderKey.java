@@ -26,7 +26,7 @@ public final class PlaceholderKey {
 		}
 		try {
 			String full = doc.get(region.getOffset(), region.getLength()); // ${...}
-			if (full.length() < 3) {
+			if (full.length() < 3 || !full.startsWith("${") || !full.endsWith("}")) {
 				return null;
 			}
 			String inner = full.substring(2, full.length() - 1).trim();
