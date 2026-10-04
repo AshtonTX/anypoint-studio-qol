@@ -36,6 +36,12 @@ public final class MuleResourceListener implements IResourceChangeListener {
 		try {
 			root.accept(delta -> {
 				IResource res = delta.getResource();
+				if (res.getType() == IResource.PROJECT && (delta.getKind() != IResourceDelta.CHANGED
+						|| (delta.getFlags() & (IResourceDelta.OPEN | IResourceDelta.DESCRIPTION)) != 0)) {
+					// Reopened/recreated projects must not reuse the previous session's cached files.
+					propertyAffected.add((IProject) res);
+					usageAffected.add((IProject) res);
+				}
 				if (res.getType() == IResource.FILE && isContentChange(delta)) {
 					IFile file = (IFile) res;
 					if (isPropertyRelevant(file)) {

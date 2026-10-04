@@ -17,6 +17,7 @@
 
   <modules>
     <module>com.studioqol</module>
+    <module>com.studioqol.tests</module>
     <module>com.studioqol.feature</module>
     <module>com.studioqol.repository</module>
   </modules>
@@ -39,13 +40,8 @@
           <target>
             <file>${maven.multiModuleProjectDirectory}/studio-7.25.target</file>
           </target>
-          <environments>
-            <environment>
-              <os>macosx</os>
-              <ws>cocoa</ws>
-              <arch>aarch64</arch>
-            </environment>
-          </environments>
+          <!-- Use the build host's OS/window system/architecture. The plugin itself is portable;
+               selecting native SWT dependencies here must also work for headless CI tests. -->
           <executionEnvironment>JavaSE-17</executionEnvironment>
         </configuration>
       </plugin>

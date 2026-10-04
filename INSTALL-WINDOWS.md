@@ -41,10 +41,12 @@ work laptop this is the single biggest thing that goes wrong, so check it first.
 
 ### Where the jars come from — someone builds it once
 
-The plugin isn't downloaded from anywhere; **one person builds it once** and the resulting
-files are shared with everyone else. "The build" just means running Maven on the source repo
+Download a prebuilt site from a successful **Build and test** run in the repository's
+**Actions** tab: download `anypoint-studio-qol-update-site`, extract that artifact ZIP, and use the enclosed
+`com.studioqol.repository-0.1.0-SNAPSHOT.zip`. Alternatively, **one person builds it once** and shares
+the result with everyone else. "The build" just means running Maven on the source repo
 (the full steps are [Path B](#path-b--build-from-source-on-windows-then-install) — JDK 17 +
-`mvn -f pom.xml clean verify`). You can build on Windows, macOS, or Linux; the output is the
+`./mvnw.cmd -B clean verify`). You can build on Windows, macOS, or Linux; the output is the
 same and is OS-independent.
 
 That one build produces, under `com.studioqol.repository\target\`:
@@ -118,16 +120,15 @@ your company requires one — see [Troubleshooting](#troubleshooting)).
 
 ### B1. Install the build tools (no admin needed)
 
-You can install both without admin rights:
+You only need a JDK; the repository includes a Maven wrapper:
 
 - **JDK 17** — e.g. [Eclipse Temurin 17 (.zip)](https://adoptium.net/temurin/releases/?version=17).
   Download the **Windows x64 `.zip`** and extract to e.g. `C:\Users\<you>\jdk-17`. (The `.msi`
   works too but may prompt for admin.)
-- **Maven 3.9+** — download the [binary `.zip`](https://maven.apache.org/download.cgi), extract
-  to e.g. `C:\Users\<you>\apache-maven`.
+- **Maven** — `mvnw.cmd` downloads the pinned compatible version on its first run. No global install is needed.
 
-> If your laptop already has a JDK 17 and Maven via the company software portal, use those —
-> just confirm the versions below.
+> If your laptop already has JDK 17 via the company software portal, use it. Keep using the
+> repository wrapper so newer global Maven versions do not conflict with Tycho.
 
 ### B2. Open PowerShell and point it at JDK 17
 
@@ -136,47 +137,24 @@ session:
 
 ```powershell
 $env:JAVA_HOME = "C:\Users\<you>\jdk-17"           # folder that contains \bin\java.exe
-$env:PATH = "$env:JAVA_HOME\bin;C:\Users\<you>\apache-maven\bin;$env:PATH"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 
 java -version      # must report 17.x
-mvn -version       # must report Maven 3.9+ and Java 17
+# After getting the repository, ./mvnw.cmd -version reports the pinned Maven and Java 17
 ```
 
-### B3. Get the source and switch it to Windows
+### B3. Get the source
 
-The repo's target platform and `pom.xml` are set for macOS by default. **For a Windows build
-you must change two `<environment>` blocks to Windows** — otherwise Tycho resolves the wrong
-SWT fragment.
-
-In the repo root, edit **`studio-7.25.target`** — change the `<environment>` near the bottom to:
-
-```xml
-  <environment>
-    <os>win32</os>
-    <ws>win32</ws>
-    <arch>x86_64</arch>
-  </environment>
-```
-
-And edit **`pom.xml`** — change the `<environment>` inside `<environments>` to match:
-
-```xml
-            <environment>
-              <os>win32</os>
-              <ws>win32</ws>
-              <arch>x86_64</arch>
-            </environment>
-```
-
-> On an ARM-based Windows laptop (Snapdragon/Surface), Studio runs via x64 emulation, so
-> `x86_64` is still correct here.
+Clone or download this repository and open PowerShell in its root folder. The build selects the host
+OS and architecture automatically; no changes to `pom.xml` or `studio-7.25.target` are required.
+Use JDK 17 for the architecture on which you are building. The produced plugin is OS-independent.
 
 ### B4. Build
 
 From the repository root (the folder with `pom.xml`):
 
 ```powershell
-mvn -f pom.xml clean verify
+./mvnw.cmd -B clean verify
 ```
 
 On success the update site is at:
@@ -189,10 +167,6 @@ com.studioqol.repository\target\repository\
 
 Follow [Path A](#path-a--install-a-prebuilt-update-site-recommended) from step 1, pointing
 **Local…** at `com.studioqol.repository\target\repository`.
-
-> Don't commit the Windows edits from B3 back to the shared repo unless the team wants the
-> default flipped — they only matter for building locally. The produced plugin itself is
-> OS-independent.
 
 ---
 
@@ -308,7 +282,7 @@ inspection (ZScaler and similar), you'll also hit `PKIX path building failed`; f
 **SmartScreen / antivirus blocks `mvn` or the JDK.**
 Use the `.zip` distributions (not installers) and extract under your user profile — that
 usually avoids SmartScreen prompts. If Defender quarantines a downloaded jar during the build,
-allow it and re-run `mvn ... clean verify`.
+allow it and re-run `./mvnw.cmd -B clean verify`.
 
 **Hover doesn't appear.**
 Confirm the project is a Mule project, you're on the **Configuration XML** tab (not the visual

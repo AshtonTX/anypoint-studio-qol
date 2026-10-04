@@ -11,7 +11,7 @@ Hovering a `${propertyName}` placeholder in the Configuration XML tab shows a po
 - the property's value **in every environment** (`local` / `test` / `prod` / `example` …) with each
   value's source `file:line`;
 - honest state flags — **secure** (`${secure::…}` / encrypted `![…]`, never decrypted), **runtime-only**
-  (`${env}` and other `-D` system props), **unresolved**, and **(empty)** template values;
+  (`${env}` by default), **unresolved**, **(empty)** template values, and explicit **(missing)** environment rows;
 - the **active environment** row highlighted (detected from the `-Denv` / `-M-Denv` VM arg of the
   run configuration you most recently launched; remembered across Studio restarts).
 
@@ -22,7 +22,8 @@ Hovering a `${propertyName}` placeholder in the Configuration XML tab shows a po
 - Env files at `src/main/resources/envs/*.properties`, selected via
   `<configuration-properties file="envs/${env}.properties"/>`.
 - The same keys across env files with different values; active env chosen at runtime with `-Denv=<env>`
-  (`-M-Denv=<env>` in Studio). The selector property name (`env`) is configurable in code.
+  (`-M-Denv=<env>` in Studio). Change the selector property name under **Preferences → Studio QoL**
+  (for example, `mule.env`); the setting applies to this workspace without editing code.
 
 ## DataWeave property hover (`p('...')`)
 The same per-environment popup appears when you hover a `p('key')` / `Mule::p('key')` reference inside a
@@ -48,7 +49,9 @@ Mule projects are validated automatically (on startup and ~0.5 s after every rel
 
 Quick fixes (**Ctrl+1** on the marker, or right-click → Quick Fix): *Add 'key=' to <env>.properties*
 appends the key with an **empty** value (values are never copied across environments); unused keys offer
-navigation to their definitions. Honest exclusions: the env selector (`${env}`), `secure::` keys when no
+navigation to their definitions. Special characters in keys are escaped, stale fixes do not add
+duplicates, and fixes preserve unsaved changes in an open properties editor. Save that editor to
+trigger revalidation. Honest exclusions: the env selector (`${env}`), `secure::` keys when no
 secure file is known, and dynamic `${a${b}}` placeholders are never flagged.
 
 ## Quick env switcher (highlight only)
@@ -65,23 +68,46 @@ active env's file.
 ## Env Comparison view
 **Window → Show View → Other… → Studio QoL → Env Comparison**: all property keys × all environments in
 one table — values, `(empty)`, `•••` for secure, red `✗ missing` cells; the active env column is
-dot-marked. Toolbar toggle **Problems only** filters to keys missing somewhere; double-click a cell to
-jump to that key in that env file. Refreshes automatically as you edit.
+dot-marked. **Filter keys** searches property names without searching values. Toolbar toggles
+**Problems only** (missing definitions) and **Differences only** (different values or missing definitions)
+can be combined with the search. Secure values stay masked; differences compare their stored encrypted
+text, not decrypted values. The footer shows the visible property count.
+
+Double-click a cell to jump to that key in that env file, or press **Enter** on a selected row to open
+its active-env definition (falling back to the first available definition). Refreshes automatically as
+you edit, keeps column widths when environments are unchanged, and discards stale refreshes after
+switching projects.
+
+## Environment settings
+Under **Preferences → Studio QoL**, set the environment selector to `env`, `mule.env`, or your custom
+property name. Apply refreshes validation and the comparison view. Automatic launch history is stored
+separately for each selector, while manual choices remain in effect until you choose **Auto**.
+Quoted VM arguments such as `-Denv="local"` are supported; when a value occurs more than once in the
+same argument string, the last occurrence wins. New launches refresh the comparison's active column.
 
 ## Build
-Requires **JDK 17** and **Maven 3.9+** (internet access on the first build to download Tycho and the
-Eclipse target platform). No Anypoint Studio install is needed to build — the target platform resolves
-standard Eclipse + WTP bundles from the public Eclipse 2024-03 p2 repository.
+Requires **JDK 17** and internet access for the first build. Use the included **Maven wrapper**,
+which pins the Maven version compatible with Tycho; no global Maven or Anypoint Studio installation
+is needed. Eclipse + WTP dependencies resolve from the public Eclipse 2024-03 p2 repository.
+The target environment is selected from the host OS and architecture automatically.
 
 ```bash
-export JAVA_HOME=/path/to/jdk-17        # any JDK 17
-mvn -f pom.xml clean verify             # run from the repository root
+export JAVA_HOME=/path/to/jdk-17
+./mvnw -B clean verify
 ```
 
-Output: a p2 update site at `com.studioqol.repository/target/repository/`.
+On Windows PowerShell, set `$env:JAVA_HOME` to your JDK 17 and run `./mvnw.cmd -B clean verify`.
+The first invocation downloads Maven; later runs reuse it.
 
-> Building on Linux/Windows? Edit the `<environment>` in `studio-7.25.target` and the `<environments>`
-> in `pom.xml` to your OS/ws/arch (e.g. `linux`/`gtk`/`x86_64`). The produced plugin is OS-independent.
+`verify` builds the plugin, runs the headless JUnit regression suite, and produces a p2 update site at
+`com.studioqol.repository/target/repository/` plus the installable archive
+`com.studioqol.repository/target/com.studioqol.repository-0.1.0-SNAPSHOT.zip`.
+Test reports are under `com.studioqol.tests/target/surefire-reports/`.
+
+GitHub Actions runs the same checks on Linux, Windows, and macOS. From a successful run of the
+**Build and test** workflow, download an `anypoint-studio-qol-update-site` artifact. Extract the GitHub artifact
+ZIP, then install the enclosed p2 ZIP through **Add… → Archive…**. GitHub's outer artifact ZIP is not
+itself the p2 archive.
 
 ## Install into Anypoint Studio
 1. **Help → Install New Software… → Add… → Local…** and select `com.studioqol.repository/target/repository`.
@@ -107,6 +133,34 @@ Output: a p2 update site at `com.studioqol.repository/target/repository/`.
 - `com.studioqol/` — the plug-in (shared `core/` infrastructure + `feature/` packages: `hover`,
   `dwhover`, `usages`, `quickfix`, `envswitch`, `compare`).
 - `com.studioqol.feature/`, `com.studioqol.repository/` — p2 feature + update site.
-- `CLAUDE.md`, `PLAN.md`, `research/` — design notes and the integration research.
+- `com.studioqol.tests/` — headless regression tests for parsing, scanning, validation, comparison,
+  usage search, quick fixes, environment arguments, and hover rendering.
+- `CLAUDE.md`, `PLAN.md`, `research/` — development guidance, historical design notes, and integration research.
 - The DataWeave `p('...')` hover + navigation (Feature 2) and how it hooks the editor at the SWT level —
   see `research/feature2-dataweave-hover.md`.
+
+## Supported scope and verification
+
+This plugin targets the repository's `envs/*.properties` convention. It is a static aid, not the Mule
+runtime resolver: YAML property files, arbitrary configuration-property locations, multiline DataWeave
+calls, and dynamic property names are not resolved. Textual usage scanning may include comments and
+quoted examples. Secure/plain properties with the same name still share an index slot, and a file
+containing encrypted values is currently classified as a secure source. Secure navigation refuses to
+jump to an ordinary definition on a name collision. Validation can still miss an undefined secure
+key when an ordinary key has the same name, or count its secure reference as use of the ordinary key.
+
+The automated suite runs without a Studio workbench. Before releasing, smoke-test in **Studio 7.25**:
+
+1. Hover a key present in local but absent in prod: both rows appear, with prod marked missing.
+2. Use escaped keys and continued `.properties` values; verify hover text and definition locations.
+3. Run an add-key quick fix twice, including with unsaved property edits; verify one empty entry,
+   intact existing values, and unchanged unsaved edits until you save.
+4. Filter Env Comparison by name, missing definitions, and differences; switch projects while editing
+   and verify the table stays on the selected project. Check double-click and Enter navigation.
+5. Change the selector to `mule.env`, launch with `-Dmule.env="test"`, then restore defaults and test
+   manual/Auto switching. Check the active column updates without reopening the view.
+6. Hover and find usages for both `${secure::password}` and `p('secure::password')`; encrypted text
+   must stay masked and ordinary `password` usages must stay separate.
+
+The DataWeave widget matcher depends on Studio's internal package names; repeat its hover, F2,
+Ctrl/⌘-click, and normal-editor interaction checks after Studio upgrades.

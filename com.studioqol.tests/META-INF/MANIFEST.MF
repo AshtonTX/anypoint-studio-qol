@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Anypoint Studio QoL Tests
+Bundle-SymbolicName: com.studioqol.tests
+Bundle-Version: 0.1.0.qualifier
+Bundle-RequiredExecutionEnvironment: JavaSE-17
+Fragment-Host: com.studioqol
+Require-Bundle: org.junit;bundle-version="[4.13.0,5.0.0)"

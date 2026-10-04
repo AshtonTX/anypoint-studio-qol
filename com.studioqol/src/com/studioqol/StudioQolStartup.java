@@ -13,6 +13,9 @@ public final class StudioQolStartup implements IStartup {
 	@Override
 	public void earlyStartup() {
 		StudioQolPlugin plugin = StudioQolPlugin.getDefault();
+		if (plugin != null) {
+			plugin.installEditorHooks();
+		}
 		// Markers are transient — populate them for all open Mule projects each session.
 		if (plugin != null && plugin.validationScheduler() != null) {
 			plugin.validationScheduler().validateAllOpen();
